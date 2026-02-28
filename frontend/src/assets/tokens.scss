@@ -1,0 +1,45 @@
+/* Global Design Tokens */
+
+/* Colors */
+$primary: #ffdf5d;
+$primary-hover: #f0cf4b;
+$secondary: #EDB79C;
+
+$success: #34c759;
+$warning: #ff9f0a;
+$danger: #ff5a24;
+$info: #007aff;
+
+$text-main: #1f2836;
+$text-secondary: #6b7a8f;
+$text-placeholder: #aab2c0;
+
+$bg-page: #edf1f6;
+$bg-card: #ffffff;
+$ink: #181d27; /* Dark text/background color */
+
+$border-color: #e6ebf2;
+
+/* Gradients */
+$brand-gradient: linear-gradient(135deg, #ffdf5d 0%, #f0cf4b 100%);
+
+/* Shadows */
+$shadow-sm: 0 4px 12px rgba(11, 14, 24, 0.04);
+$shadow-md: 0 10px 24px rgba(11, 14, 24, 0.08);
+$shadow-lg: 0 20px 40px rgba(11, 14, 24, 0.12);
+
+$shadow-btn: 0 4px 16px rgba(0, 0, 0, 0.08);
+$shadow-btn-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+$shadow-primary-glow: 0 10px 30px rgba(255, 223, 93, 0.35);
+
+/* Border Radius */
+$radius-sm: 8px;
+$radius-md: 16px;
+$radius-lg: 24px;
+$radius-full: 999px;
+
+/* Transitions */
+$transition-base: all 0.2s ease;
+$transition-smooth: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+/* Spacing & Z-index can be added as needed */
