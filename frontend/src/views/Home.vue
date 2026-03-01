@@ -48,7 +48,7 @@
             >
               <div class="user-profile">
                 <span class="nickname">{{ user.nickname || user.username || '闲趣用户' }}</span>
-                <el-avatar :size="38" :src="user.avatar || defaultAvatar" class="avatar-img" />
+                <el-avatar :size="38" :src="resolveUrl(user.avatar || defaultAvatar)" class="avatar-img" />
               </div>
 
               <template #dropdown>
@@ -151,7 +151,7 @@
                   <span class="wants" v-if="item.status === 1">{{ item.view_count || 0 }}人想要</span>
                 </div>
                 <div class="seller-row">
-                  <img :src="item.seller?.avatar || defaultAvatar" />
+                  <img :src="resolveUrl(item.seller?.avatar || defaultAvatar)" />
                   <span class="name">{{ item.seller?.nickname || item.seller?.username || '闲趣用户' }}</span>
                   <span class="credit-tag" v-if="item.status === 1">信用极好</span>
                 </div>
@@ -173,7 +173,7 @@
 
     <el-drawer v-model="userDrawer" title="个人中心" direction="rtl" size="300px" class="user-drawer" destroy-on-close>
       <div class="drawer-profile">
-        <el-avatar :size="80" :src="user?.avatar || defaultAvatar" class="big-avatar" />
+        <el-avatar :size="80" :src="resolveUrl(user?.avatar || defaultAvatar)" class="big-avatar" />
         <h3 class="username">{{ user?.nickname || user?.username || '闲趣用户' }}</h3>
         <p class="uid">ID: {{ user?.id }}</p>
       </div>
@@ -194,7 +194,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, CaretTop, Switch, ShoppingCart, User, List, SwitchButton, ChatDotRound, Money, ArrowRight, Location, Goods, Loading } from '@element-plus/icons-vue'
@@ -377,12 +377,7 @@ const fetchProducts = async () => {
     const res = await request.get('/api/products', { params })
 
     productList.value = (res.list || []).map(item => {
-      let img = item.image
-      if (img && !img.startsWith('http')) {
-        img = 'http://127.0.0.1:8081' + img
-      }
-      if (img) img = img.replace('localhost', '127.0.0.1')
-      return { ...item, image: img }
+      return { ...item, image: resolveUrl(item.image) }
     })
     return true
   } catch (e) {
@@ -421,7 +416,8 @@ const initGlobalWebSocket = () => {
   const token = normalizeToken(localStorage.getItem('token'))
   if (!token) return
   const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const wsHost = import.meta.env.DEV ? 'localhost:8081' : window.location.host
+  const apiBase = import.meta.env.VITE_API_URL || ''
+  const wsHost = apiBase ? apiBase.replace(/^https?:\/\//, '') : (import.meta.env.DEV ? 'localhost:8081' : window.location.host)
   const wsUrl = `${wsProtocol}://${wsHost}/api/ws?token=${encodeURIComponent(token)}`
   globalSocket = new WebSocket(wsUrl)
   globalSocket.onopen = () => {

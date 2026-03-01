@@ -25,7 +25,7 @@
         >
           <el-avatar
               :size="42"
-              :src="isMe(msg.sender_id) ? (user.avatar || defaultAvatar) : (targetUser.avatar || defaultAvatar)"
+              :src="resolveUrl(isMe(msg.sender_id) ? (user.avatar || defaultAvatar) : (targetUser.avatar || defaultAvatar))"
               class="avatar-img"
           />
 
@@ -36,9 +36,9 @@
 
             <el-image
                 v-else-if="msg.type === 2 || msg.type === 'image'"
-                :src="msg.content"
+                :src="resolveUrl(msg.content)"
                 class="bubble image-bubble"
-                :preview-src-list="[msg.content]"
+                :preview-src-list="[resolveUrl(msg.content)]"
                 fit="cover"
                 hide-on-click-modal
             >
@@ -65,7 +65,7 @@
             <span>😀</span>
           </div>
           <el-upload
-              action="http://127.0.0.1:8081/api/upload"
+              :action="uploadUrl"
               name="file"
               :headers="uploadHeaders"
               :show-file-list="false"
@@ -103,7 +103,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { ArrowLeft, Picture, Promotion } from '@element-plus/icons-vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
@@ -119,6 +119,11 @@ const messages = ref([])
 const inputText = ref('')
 const msgBoxRef = ref(null)
 let socket = null
+
+const uploadUrl = computed(() => {
+  const baseUrl = import.meta.env.VITE_API_URL || '/'
+  return baseUrl.endsWith('/') ? `${baseUrl}api/upload` : `${baseUrl}/api/upload`
+})
 
 const uploadHeaders = computed(() => {
   const token = localStorage.getItem('token')
@@ -144,22 +149,13 @@ const onSelectEmoji = (emoji) => {
   inputText.value += emoji.i
 }
 
-// ★★★ 核心修复：调用后端真实接口获取对方信息 ★★★
+// 获取对方信息
 const fetchTargetInfo = async () => {
   try {
     const res = await request.get(`/api/users/${targetId}`)
-    const info = res.data || {}
-
-    // 图片路径修复
-    if (info.avatar && !info.avatar.startsWith('http')) {
-      info.avatar = 'http://127.0.0.1:8081' + info.avatar
-      info.avatar = info.avatar.replace('localhost', '127.0.0.1')
-    }
-
-    targetUser.value = info
+    targetUser.value = res.data || {}
   } catch (e) {
     console.error('获取对方信息失败', e)
-    // 失败兜底
     targetUser.value = { nickname: `用户 ${targetId}` }
   }
 }
@@ -180,7 +176,11 @@ const initWebSocket = () => {
   const token = localStorage.getItem('token')
   if (!token) return
 
-  const wsUrl = `ws://localhost:8081/api/ws?token=${token}`
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  const apiBase = import.meta.env.VITE_API_URL || ''
+  const wsHost = apiBase ? apiBase.replace(/^https?:\/\//, '') : (import.meta.env.DEV ? 'localhost:8081' : window.location.host)
+  const wsUrl = `${wsProtocol}://${wsHost}/api/ws?token=${encodeURIComponent(token)}`
+  
   socket = new WebSocket(wsUrl)
 
   socket.onmessage = (event) => {
@@ -222,13 +222,8 @@ const sendMessage = () => {
 
 // 发送图片
 const handleImageUpload = (res) => {
-  if (res.url) {
-    let finalUrl = res.url
-    if (!finalUrl.startsWith('http')) {
-      finalUrl = 'http://127.0.0.1:8081' + finalUrl
-    }
-    finalUrl = finalUrl.replace('localhost', '127.0.0.1')
-
+  const finalUrl = resolveUrl(res.url)
+  if (finalUrl) {
     const msgData = {
       receiver_id: targetId,
       content: finalUrl,
@@ -243,7 +238,6 @@ const handleImageUpload = (res) => {
 }
 
 onMounted(async () => {
-  // ★★★ 按顺序执行：先获取人，再获取消息，最后连 WS ★★★
   await fetchTargetInfo()
   await fetchHistory()
   initWebSocket()

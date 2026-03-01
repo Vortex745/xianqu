@@ -19,11 +19,11 @@
           <div class="image-stage">
             <el-image
                 ref="imageRef"
-                :src="product.image || defaultImg"
+                :src="resolveUrl(product.image || defaultImg)"
                 fit="contain"
                 class="main-img"
                 :class="{ 'is-sold': product.status !== 1 }"
-                :preview-src-list="[product.image || defaultImg]"
+                :preview-src-list="[resolveUrl(product.image || defaultImg)]"
                 hide-on-click-modal
             >
               <template #error>
@@ -44,7 +44,7 @@
         <div class="info-section">
           <div class="info-scroll-area">
             <div class="seller-bar" @click="goToUserPage">
-              <el-avatar :size="44" :src="product.seller?.avatar || defaultAvatar" class="seller-avatar" />
+              <el-avatar :size="44" :src="resolveUrl(product.seller?.avatar || defaultAvatar)" class="seller-avatar" />
               <div class="seller-info">
                 <div class="name">{{ product.seller?.nickname || product.seller?.username || '神秘卖家' }}</div>
                 <div class="tags">
@@ -125,7 +125,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import {
   ArrowLeft, Picture, ZoomIn, View, Star, StarFilled,
@@ -207,14 +207,11 @@ const fetchDetail = async () => {
     let data = res.data
 
     // 图片路径处理
-    if (data.image && !data.image.startsWith('http')) {
-      data.image = 'http://127.0.0.1:8081' + data.image
-    }
-    if (data.image) data.image = data.image.replace('localhost', '127.0.0.1')
+    if (data.image) data.image = resolveUrl(data.image)
 
     // 头像处理
-    if (data.seller && data.seller.avatar && !data.seller.avatar.startsWith('http')) {
-      data.seller.avatar = 'http://127.0.0.1:8081' + data.seller.avatar
+    if (data.seller && data.seller.avatar) {
+      data.seller.avatar = resolveUrl(data.seller.avatar)
     }
 
     data.is_negotiable = isOptionEnabled(data.is_negotiable ?? data.isNegotiable)

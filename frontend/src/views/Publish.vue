@@ -25,7 +25,7 @@
           <p class="section-subtitle">上传一张好看的封面图，吸引更多眼球</p>
           <el-upload
             class="image-uploader"
-            action="/api/upload"
+            :action="uploadUrl"
             name="file"
             :headers="uploadHeaders"
             :show-file-list="false"
@@ -175,6 +175,11 @@ const locationErrorMsg = ref('')
 const user = JSON.parse(localStorage.getItem('user') || '{}')
 
 const isEditMode = computed(() => !!route.query.id)
+
+const uploadUrl = computed(() => {
+  const baseUrl = import.meta.env.VITE_API_URL || '/'
+  return baseUrl.endsWith('/') ? `${baseUrl}api/upload` : `${baseUrl}/api/upload`
+})
 
 const uploadHeaders = computed(() => {
   const token = localStorage.getItem('token')

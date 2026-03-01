@@ -1,12 +1,24 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
-const service = axios.create({
+const request = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/',
-    timeout: 5000
+    timeout: 15000
 })
 
-service.interceptors.request.use(
+export const resolveUrl = (path) => {
+    if (!path) return ''
+    if (path.startsWith('http') || path.startsWith('https') || path.startsWith('data:')) {
+        return path.replace('localhost', '127.0.0.1') // Cleanup for local consistency
+    }
+    const apiBase = import.meta.env.VITE_API_URL || ''
+    const cleanBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase
+    const cleanPath = path.startsWith('/') ? path : `/${path}`
+    return `${cleanBase}${cleanPath}`
+}
+
+// 请求拦截器
+request.interceptors.request.use(
     config => {
         const token = localStorage.getItem('token')
         const adminToken = localStorage.getItem('admin_token')
@@ -21,7 +33,8 @@ service.interceptors.request.use(
     error => Promise.reject(error)
 )
 
-service.interceptors.response.use(
+// 响应拦截器
+request.interceptors.response.use(
     response => response.data,
     error => {
         if (error.response) {
@@ -54,4 +67,4 @@ service.interceptors.response.use(
     }
 )
 
-export default service
+export default request
