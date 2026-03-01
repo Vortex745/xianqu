@@ -1,8 +1,6 @@
 module gotest
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.23.0
 
 require (
 	github.com/gin-gonic/gin v1.11.0
@@ -12,7 +10,6 @@ require (
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	golang.org/x/crypto v0.45.0
 	gorm.io/gorm v1.31.1
-
 )
 
 require (
