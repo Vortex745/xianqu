@@ -2,7 +2,7 @@ package ws
 
 import (
 	"encoding/json"
-	"gotest/internal/models"
+	"gotest/core/models"
 	"log"
 )
 

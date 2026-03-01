@@ -259,8 +259,7 @@ const form = ref(defaultForm())
 const formRules = {
   provider: [{ required: true, message: '请选择提供商', trigger: 'change' }],
   model_name: [{ required: true, message: '请填写模型名称', trigger: 'blur' }],
-  api_key: [{ required: true, message: '请填写API密钥', trigger: 'blur' }],
-  price_per_k: [{ required: true, message: '请设置单价', trigger: 'blur' }]
+  api_key: [{ required: true, message: '请填写API密钥', trigger: 'blur' }]
 }
 
 const filteredList = computed(() => {

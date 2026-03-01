@@ -1,0 +1,22 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "main.py",
+            "use": "@vercel/python",
+            "config": {
+                "maxDuration": 60
+            }
+        }
+    ],
+    "routes": [
+        {
+            "src": "/ai/(.*)",
+            "dest": "main.py"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "main.py"
+        }
+    ]
+}

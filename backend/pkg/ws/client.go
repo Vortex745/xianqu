@@ -3,7 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"gotest/config"
-	"gotest/internal/models"
+	"gotest/core/models"
 	"log"
 	"time"
 
