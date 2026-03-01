@@ -2,7 +2,7 @@
     "version": 2,
     "functions": {
         "backend/api/index.go": {
-            "runtime": "vercel-go@latest"
+            "runtime": "vercel-go"
         }
     },
     "rewrites": [
