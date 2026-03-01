@@ -113,7 +113,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Lock } from '@element-plus/icons-vue'
 
@@ -135,6 +135,10 @@ const fetchProduct = async () => {
       router.replace('/profile')
       return
     }
+    
+    // 图片路径处理
+    if (data.image) data.image = resolveUrl(data.image)
+    
     Object.assign(form, data)
   } catch (e) { console.error(e) } finally { loading.value = false }
 }

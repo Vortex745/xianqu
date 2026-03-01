@@ -119,7 +119,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { Search, ArrowLeft, Filter, CircleCloseFilled, CaretTop, CaretBottom } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -162,14 +162,11 @@ const doSearch = async () => {
 
     // ★★★ 图片路径修复 ★★★
     productList.value = (res.list || []).map(item => {
-      let img = item.image
-      if (img && !img.startsWith('http')) {
-        img = 'http://127.0.0.1:8081' + img
+      return { 
+        ...item, 
+        image: resolveUrl(item.image),
+        seller: item.seller ? { ...item.seller, avatar: resolveUrl(item.seller.avatar) } : item.seller
       }
-      if (img) {
-        img = img.replace('localhost', '127.0.0.1')
-      }
-      return { ...item, image: img }
     })
 
     isFilterOpen.value = false

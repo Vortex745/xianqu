@@ -105,7 +105,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Calendar, Refresh } from '@element-plus/icons-vue'
 
@@ -130,7 +130,10 @@ const fetchUsers = async () => {
     const res = await request.get('/api/admin/users', {
       headers: { Authorization: token }
     })
-    rawUserList.value = res.data || []
+    rawUserList.value = (res.data || []).map(u => ({
+      ...u,
+      avatar: resolveUrl(u.avatar)
+    }))
   } catch (e) {
     console.error(e)
     ElMessage.error('获取用户列表失败')

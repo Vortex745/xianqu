@@ -180,7 +180,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Delete, Check, ShoppingCart, Goods } from '@element-plus/icons-vue'
@@ -199,11 +199,7 @@ const payVisible = ref(false)
 const payOrderInfo = ref({})
 const sellerCache = new Map()
 
-const normalizeAssetUrl = (url) => {
-  if (!url) return ''
-  if (!url.startsWith('http')) return ('http://127.0.0.1:8081' + url).replace('localhost', '127.0.0.1')
-  return url.replace('localhost', '127.0.0.1')
-}
+const normalizeAssetUrl = (url) => resolveUrl(url)
 
 // 获取卖家名字
 const getSellerName = (p) => {

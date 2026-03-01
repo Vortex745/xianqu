@@ -285,14 +285,7 @@ const previewAvatar = ref('')
 const selectedFile = ref(null)
 
 // 辅助函数：修复图片路径
-const fixImageUrl = (url) => {
-  if (!url) return ''
-  let fixedUrl = url
-  if (!fixedUrl.startsWith('http')) {
-    fixedUrl = 'http://127.0.0.1:8081' + fixedUrl
-  }
-  return fixedUrl.replace('localhost', '127.0.0.1')
-}
+const fixImageUrl = (url) => resolveUrl(url)
 
 // 获取卖家名字 (收藏列表中使用)
 const getSellerName = (product) => {
@@ -381,7 +374,7 @@ watch(() => route.fullPath, () => {
 
 const openEditProfileModal = () => {
   Object.assign(profileForm, { nickname: userInfo.value.nickname, email: userInfo.value.email, code: '' })
-  if (!selectedFile.value) { previewAvatar.value = fixImageUrl(userInfo.value.avatar) }
+  if (!selectedFile.value) { previewAvatar.value = resolveUrl(userInfo.value.avatar) }
   editProfileVisible.value = true
 }
 
@@ -396,9 +389,8 @@ const submitProfileEdit = async () => {
       const uploadRes = await request.post('/api/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 
       let uploadedUrl = uploadRes.url
-      if (uploadedUrl && !uploadedUrl.startsWith('http')) { uploadedUrl = 'http://127.0.0.1:8081' + uploadedUrl }
-      uploadedUrl = uploadedUrl.replace('localhost', '127.0.0.1')
-      newAvatarUrl = uploadedUrl
+      // 只要后端返回了地址，我们就使用 resolveUrl 统一处理，它会自动识别 http 开头的地址
+      newAvatarUrl = resolveUrl(uploadedUrl)
     }
 
     const updateData = { ...profileForm, avatar: newAvatarUrl }

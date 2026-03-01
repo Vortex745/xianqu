@@ -99,7 +99,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import IconifySymbol from '@/components/IconifySymbol.vue'
@@ -133,14 +133,11 @@ const fetchOrders = async () => {
     // 图片路径修复逻辑
     allOrders.value = (res.data || []).map(order => {
       if (order.product && order.product.image) {
-        let img = order.product.image
-        if (!img.startsWith('http')) { img = 'http://127.0.0.1:8081' + img }
-        img = img.replace('localhost', '127.0.0.1')
-        order.product.image = img
+        order.product.image = resolveUrl(order.product.image)
       }
       // 买家头像修复
-      if (order.user && order.user.avatar && !order.user.avatar.startsWith('http')) {
-        order.user.avatar = 'http://127.0.0.1:8081' + order.user.avatar
+      if (order.user && order.user.avatar) {
+        order.user.avatar = resolveUrl(order.user.avatar)
       }
       return order
     })
@@ -338,4 +335,58 @@ $bg: #f6f7f9;
 }
 .animate-up { animation: fadeInUp 0.5s ease backwards; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ========== 手机端适配 ========== */
+@media (max-width: 480px) {
+  .nav-header {
+    height: 50px;
+    padding: 0 10px;
+    .nav-inner h1 { font-size: 16px; }
+  }
+
+  .tabs-bar {
+    .tabs-inner { gap: 15px; justify-content: center; }
+    .tab-item {
+      font-size: 13px;
+      &.active { font-size: 14px; }
+    }
+  }
+
+  .content-area { padding-top: 10px; }
+
+  .order-card {
+    padding: 12px;
+    .card-header {
+      margin-bottom: 10px;
+      .shop-info { font-size: 12px; }
+      .order-status { font-size: 11px; }
+    }
+
+    .card-body {
+      gap: 10px;
+      .img-wrapper { width: 70px; height: 70px; }
+      .info {
+        .title { font-size: 13px; height: auto; max-height: 36px; -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; margin-bottom: 4px; }
+        .tags .tag { font-size: 9px; }
+      }
+      .price-col {
+        .price { font-size: 14px; }
+        .qty { font-size: 10px; }
+      }
+    }
+
+    .card-footer {
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      margin-top: 12px;
+      .summary { font-size: 11px; }
+      .actions {
+        width: 100%;
+        justify-content: flex-end;
+        button { padding: 5px 12px; font-size: 12px; }
+      }
+    }
+  }
+}
 </style>

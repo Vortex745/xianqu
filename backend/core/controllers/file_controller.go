@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -19,7 +20,7 @@ import (
 
 type FileController struct{}
 
-// Upload 处理文件上传 (修改为返回 Base64 以支持 Vercel Serverless)
+// Upload 处理文件上传 (支持直传 Superbed 图床)
 func (fc *FileController) Upload(c *gin.Context) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -34,7 +35,7 @@ func (fc *FileController) Upload(c *gin.Context) {
 		return
 	}
 
-	// 读取上传的文件到内存中进行处理
+	// 读取上传的文件
 	srcFile, err := file.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法读取上传的文件"})
@@ -42,53 +43,99 @@ func (fc *FileController) Upload(c *gin.Context) {
 	}
 	defer srcFile.Close()
 
-	// 解码图片
+	// 尝试解码图片以进行可能的压缩/处理
 	img, format, err := image.Decode(srcFile)
+	var finalData []byte
+	var mimeType string
+
 	if err != nil {
-		// 如果解码失败，直接将原始文件转为 base64
+		// 非图片或解码失败，获取原始字节
 		srcFile.Seek(0, 0)
-		fileBytes, _ := io.ReadAll(srcFile)
-		mimeType := http.DetectContentType(fileBytes)
-		encoded := base64.StdEncoding.EncodeToString(fileBytes)
-		c.JSON(http.StatusOK, gin.H{"url": fmt.Sprintf("data:%s;base64,%s", mimeType, encoded)})
-		return
+		finalData, _ = io.ReadAll(srcFile)
+		mimeType = http.DetectContentType(finalData)
+	} else {
+		// 图片处理：计算新尺寸 (最大边长 1920)
+		const maxDim = 1920
+		bounds := img.Bounds()
+		width := uint(bounds.Dx())
+		height := uint(bounds.Dy())
+
+		var newImg image.Image = img
+		if width > maxDim || height > maxDim {
+			newImg = resize.Thumbnail(maxDim, maxDim, img, resize.Lanczos3)
+		}
+
+		// 编码处理后的图片
+		var buf bytes.Buffer
+		format = strings.ToLower(format)
+		mimeType = "image/jpeg"
+		switch format {
+		case "png":
+			mimeType = "image/png"
+			png.Encode(&buf, newImg)
+		default:
+			jpeg.Encode(&buf, newImg, &jpeg.Options{Quality: 80})
+		}
+		finalData = buf.Bytes()
 	}
 
-	// 计算新尺寸 (最大边长 1920)
-	const maxDim = 1920
-	bounds := img.Bounds()
-	width := uint(bounds.Dx())
-	height := uint(bounds.Dy())
+	// 检查是否配置了 ImgBB API Key
+	apiKey := os.Getenv("IMGBB_API_KEY")
+	if apiKey != "" {
+		// 1. 准备向 ImgBB 发送请求
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
 
-	var newImg image.Image = img
-	if width > maxDim || height > maxDim {
-		newImg = resize.Thumbnail(maxDim, maxDim, img, resize.Lanczos3)
+		// 添加文件
+		part, err := writer.CreateFormFile("image", file.Filename)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "构建上传请求失败"})
+			return
+		}
+		part.Write(finalData)
+		writer.Close()
+
+		uploadUrl := fmt.Sprintf("https://api.imgbb.com/1/upload?key=%s", apiKey)
+		req, err := http.NewRequest("POST", uploadUrl, body)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求对象失败"})
+			return
+		}
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+
+		// 2. 执行请求
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Println("ImgBB 上传连接失败:", err)
+			goto fallback
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+		var result struct {
+			Data struct {
+				URL string `json:"url"`
+			} `json:"data"`
+			Success bool `json:"success"`
+			Status  int  `json:"status"`
+		}
+
+		if err := json.Unmarshal(respBody, &result); err == nil && result.Success {
+			// 上传成功
+			c.JSON(http.StatusOK, gin.H{"url": result.Data.URL})
+			return
+		} else {
+			fmt.Printf("ImgBB 接口返回错误, body: %s\n", string(respBody))
+		}
 	}
 
-	// 将压缩后的图片写入缓冲区
-	var buf bytes.Buffer
-	format = strings.ToLower(format)
-	mimeType := "image/jpeg"
-
-	switch format {
-	case "png":
-		mimeType = "image/png"
-		err = png.Encode(&buf, newImg)
-	default:
-		err = jpeg.Encode(&buf, newImg, &jpeg.Options{Quality: 80})
-	}
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "图片处理失败"})
-		return
-	}
-
-	// 转换为 Base64
-	encoded := base64.StdEncoding.EncodeToString(buf.Bytes())
-	dataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, encoded)
-
+fallback:
+	// 备份方案：如果 Token 未配置或 Superbed 上传失败，返回 Base64 Data URI
+	encoded := base64.StdEncoding.EncodeToString(finalData)
 	c.JSON(http.StatusOK, gin.H{
-		"url": dataURI,
+		"url":  fmt.Sprintf("data:%s;base64,%s", mimeType, encoded),
+		"info": "Uploaded as Base64 (Superbed not configured or failed)",
 	})
 }
 

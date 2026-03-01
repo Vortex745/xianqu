@@ -102,7 +102,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { Search, Refresh } from '@element-plus/icons-vue'
 
 const loading = ref(false)
@@ -110,11 +110,7 @@ const orderList = ref([])
 const keyword = ref('')
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
 
-const fixUrl = (url) => {
-  if (!url) return ''
-  if (!url.startsWith('http')) return 'http://127.0.0.1:8081' + url
-  return url.replace('localhost', '127.0.0.1')
-}
+const fixUrl = (url) => resolveUrl(url)
 
 const fetchOrders = async () => {
   loading.value = true
@@ -123,7 +119,11 @@ const fetchOrders = async () => {
     const res = await request.get('/api/admin/orders', {
       headers: { Authorization: token }
     })
-    orderList.value = res.data || []
+    orderList.value = (res.data || []).map(o => {
+      if (o.user && o.user.avatar) o.user.avatar = resolveUrl(o.user.avatar)
+      if (o.seller && o.seller.avatar) o.seller.avatar = resolveUrl(o.seller.avatar)
+      return o
+    })
   } catch (e) {
     console.error(e)
   } finally {

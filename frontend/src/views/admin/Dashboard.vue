@@ -144,7 +144,7 @@
 
 <script setup>
 import { ref, onMounted, computed, shallowRef } from 'vue'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -162,11 +162,7 @@ const products = ref([])
 const orders = ref([])
 
 // Helper: Fix Image URL
-const fixUrl = (url) => {
-  if (!url) return ''
-  if (!url.startsWith('http')) return 'http://127.0.0.1:8081' + url
-  return url.replace('localhost', '127.0.0.1')
-}
+const fixUrl = (url) => resolveUrl(url)
 
 // 1. Fetch Real Data
 const fetchAllData = async () => {

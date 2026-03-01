@@ -114,7 +114,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import request from '@/utils/request'
+import request, { resolveUrl } from '@/utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, CloseBold, Check, Picture, Refresh } from '@element-plus/icons-vue'
 
@@ -133,11 +133,7 @@ const productList = computed(() => {
 })
 
 // 修复图片 helper
-const fixUrl = (url) => {
-  if (!url) return ''
-  if (!url.startsWith('http')) return 'http://127.0.0.1:8081' + url
-  return url.replace('localhost', '127.0.0.1')
-}
+const fixUrl = (url) => resolveUrl(url)
 
 const fetchProducts = async () => {
   loading.value = true
@@ -146,7 +142,12 @@ const fetchProducts = async () => {
     const res = await request.get('/api/admin/products', {
       headers: { Authorization: token }
     })
-    rawProductList.value = res.data || []
+    rawProductList.value = (res.data || []).map(p => {
+       if (p.user && p.user.avatar) {
+         p.user.avatar = resolveUrl(p.user.avatar)
+       }
+       return p
+    })
   } catch (e) {
     console.error(e)
     ElMessage.error('获取商品列表失败')
