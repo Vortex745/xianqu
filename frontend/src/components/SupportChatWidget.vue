@@ -120,7 +120,17 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
 
-const apiBase = (import.meta.env.VITE_AI_BASE_URL || '/ai').replace(/\/$/, '')
+const resolveAIBase = () => {
+  const explicit = String(import.meta.env.VITE_AI_BASE_URL || '').trim()
+  if (explicit) return explicit.replace(/\/$/, '')
+
+  const apiBase = String(import.meta.env.VITE_API_URL || '').trim()
+  if (apiBase) return `${apiBase.replace(/\/$/, '')}/ai`
+
+  return '/ai'
+}
+
+const apiBase = resolveAIBase()
 const route = useRoute()
 const router = useRouter()
 const MODE_SUPPORT = 'support'
@@ -528,6 +538,9 @@ const parseSendErrorMessage = (error) => {
   }
   if (lower.includes('request failed: 500')) {
     return '抱歉，AI 助手遇到了一点问题，请稍后再试'
+  }
+  if (lower.includes('request failed: 404')) {
+    return 'AI 服务地址未配置正确，请联系管理员'
   }
   if (lower.includes('request failed: 401') || lower.includes('request failed: 403')) {
     return '登录状态已过期，请重新登录后再试'

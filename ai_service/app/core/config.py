@@ -9,14 +9,6 @@ _AI_SERVICE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(_AI_SERVICE_DIR / ".env")
 load_dotenv(_AI_SERVICE_DIR / ".env.local")
 
-
-def _get_required_env(name: str) -> str:
-    value = os.getenv(name, "").strip()
-    if not value:
-        raise RuntimeError(f"Missing required env var: {name}")
-    return value
-
-
 def _parse_float(name: str, default: float) -> float:
     raw = os.getenv(name, str(default)).strip()
     try:
@@ -38,7 +30,9 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        deepseek_api_key = _get_required_env("DEEPSEEK_API_KEY")
+        # Optional: when empty, service can still run with dynamic model config
+        # fetched from backend admin settings.
+        deepseek_api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
         deepseek_base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").strip()
         deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat").strip()
         deepseek_temperature = _parse_float("DEEPSEEK_TEMPERATURE", 0.4)

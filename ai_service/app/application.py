@@ -28,5 +28,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Support both `/chat` and `/ai/chat` styles to avoid path mismatch
+    # across different reverse-proxy setups.
     app.include_router(create_api_router(assistant, agent))
+    app.include_router(create_api_router(assistant, agent), prefix="/ai")
     return app

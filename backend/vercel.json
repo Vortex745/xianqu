@@ -2,6 +2,10 @@
     "version": 2,
     "rewrites": [
         {
+            "source": "/ai/(.*)",
+            "destination": "https://ai.530745.xyz/$1"
+        },
+        {
             "source": "/api/(.*)",
             "destination": "/api/index.go"
         }
