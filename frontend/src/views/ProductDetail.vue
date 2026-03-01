@@ -618,7 +618,34 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   .main-viewport { padding: 10px; height: auto; display: block; }
   .glass-card { flex-direction: column; max-height: none; border-radius: 20px; }
   .gallery-section { height: 400px; border-right: none; border-bottom: 1px solid #eee; }
-  .info-scroll-area { max-height: none; }
+  .info-scroll-area { max-height: none; padding: 16px 20px; }
   .action-dock { position: sticky; bottom: 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.05); }
+}
+
+@media (max-width: 480px) {
+  .nav-header { 
+    height: 50px; 
+    padding: 0 12px;
+    .brand-logo { font-size: 14px; }
+    .back-btn { font-size: 13px; padding: 6px 10px; }
+  }
+  .gallery-section { height: 320px; }
+  .product-header {
+    .price-line {
+      .num { font-size: 32px; }
+      .symbol { font-size: 16px; }
+    }
+    .title { font-size: 20px; }
+  }
+  .desc-box { padding: 10px 12px; p { font-size: 14px; } }
+  .action-dock {
+    padding: 10px 16px;
+    gap: 12px;
+    .icon-btn .text { font-size: 10px; }
+    .main-btns {
+      gap: 8px;
+      .btn { height: 40px; font-size: 14px; }
+    }
+  }
 }
 </style>

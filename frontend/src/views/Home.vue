@@ -737,6 +737,160 @@ $primary: #ffdf5d; $bg-color: #f6f7f9;
   }
 }
 
+/* ========== 平板适配 ========== */
+@media (max-width: 768px) {
+  .container { padding: 0 12px; }
+
+  .navbar {
+    height: 56px;
+    .navbar-content {
+      gap: 8px;
+    }
+  }
+
+  .brand {
+    .brand-text { font-size: 18px; letter-spacing: 1px; }
+    .logo-box { width: 28px; height: 28px; }
+  }
+
+  .nav-search-bar { display: none !important; }
+
+  .nav-actions {
+    gap: 8px !important;
+    .location-badge { display: none !important; }
+    .icon-btn-wrapper {
+      .icon-circle { width: 34px; height: 34px; font-size: 16px; }
+    }
+    .user-profile {
+      padding: 2px 2px 2px 8px !important;
+      .nickname { display: none; }
+    }
+    .btn-login-pill {
+      padding: 6px 14px !important;
+      font-size: 13px !important;
+      white-space: nowrap !important;
+      writing-mode: horizontal-tb !important;
+    }
+  }
+
+  .hero-section {
+    padding: 32px 0 60px !important;
+    .hero-title { font-size: 32px !important; }
+    .hero-subtitle { font-size: 14px !important; margin-bottom: 20px !important; }
+    .search-box-large {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 48px !important;
+      &:hover, &:focus-within { width: 100% !important; }
+      .btn-search-large { padding: 0 20px !important; font-size: 15px !important; }
+    }
+  }
+
+  .action-bar-wrapper {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+    .filter-container {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      &::-webkit-scrollbar { display: none; }
+    }
+    .static-filter-list {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+      &::-webkit-scrollbar { display: none; }
+    }
+    .filter-chip {
+      flex-shrink: 0;
+      padding: 6px 14px !important;
+      font-size: 13px !important;
+    }
+    .location-switch-wrapper {
+      min-width: unset !important;
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .btn-publish-float {
+      padding: 8px 16px !important;
+      font-size: 13px !important;
+    }
+  }
+
+  .product-grid-system {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .product-card .card-details {
+    padding: 10px !important;
+    .title { font-size: 13px !important; height: 36px !important; }
+    .price-row {
+      .amount { font-size: 16px !important; }
+    }
+  }
+}
+
+/* ========== 手机适配 ========== */
+@media (max-width: 480px) {
+  .navbar { height: 50px; }
+
+  .brand {
+    gap: 6px;
+    .brand-text { font-size: 16px; }
+    .logo-box { width: 24px; height: 24px;
+      .circle-shape { width: 18px; height: 18px; }
+      .square-shape { width: 16px; height: 16px; }
+    }
+  }
+
+  .nav-actions {
+    gap: 6px !important;
+    .icon-btn-wrapper .icon-circle { width: 30px; height: 30px; font-size: 14px; }
+    .btn-login-pill {
+      padding: 5px 12px !important;
+      font-size: 12px !important;
+    }
+  }
+
+  .hero-section {
+    padding: 20px 0 40px !important;
+    .hero-title { font-size: 26px !important; letter-spacing: 1px !important; }
+    .hero-subtitle { font-size: 13px !important; }
+    .search-box-large {
+      height: 44px !important;
+      .input-wrapper {
+        padding-left: 12px !important;
+        input { font-size: 14px !important; }
+        .search-icon { font-size: 16px !important; }
+      }
+      .btn-search-large { padding: 0 16px !important; font-size: 14px !important; border-radius: 20px !important; }
+    }
+  }
+
+  .product-grid-system {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .product-card {
+    border-radius: 12px !important;
+    .card-details {
+      padding: 8px !important;
+      .title { font-size: 12px !important; height: auto !important; max-height: 34px !important; -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; }
+      .price-row { margin-bottom: 6px !important; .amount { font-size: 15px !important; } .wants, .sold-label { font-size: 10px !important; } }
+      .seller-row { .name { font-size: 11px; } img { width: 16px; height: 16px; } }
+      .location-tag { font-size: 10px !important; }
+    }
+  }
+
+  .section-title { font-size: 15px !important; }
+}
+
 @keyframes rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

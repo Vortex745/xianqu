@@ -391,4 +391,80 @@ $max-width: 1200px;
 
 .animate-up { animation: fadeInUp 0.5s ease backwards; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 4. 移动端适配 (Mobile Responsive) */
+@media (max-width: 768px) {
+  .fixed-header {
+    height: 60px;
+    .header-inner {
+      padding: 0 12px;
+      gap: 10px;
+    }
+    .search-group {
+      .input-wrapper {
+        height: 38px;
+        padding: 0 10px;
+        border-radius: 8px;
+        .search-icon { font-size: 16px; margin-right: 4px; }
+        .custom-input { font-size: 14px; }
+      }
+      .search-btn {
+        height: 38px;
+        padding: 0 16px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+    }
+    .filter-toggle-btn {
+      padding: 6px 8px;
+      .text { display: none; } /* 移动端隐藏"筛选"文字，仅保留图标 */
+      .icon { font-size: 20px; }
+    }
+  }
+
+  .filter-section-wrapper {
+    margin-top: 60px !important;
+  }
+
+  .filter-panel {
+    .panel-content { padding: 16px; }
+    .filter-row {
+      margin-bottom: 16px;
+      .label { width: 40px; font-size: 13px; }
+      .chip { padding: 4px 12px; font-size: 12px; }
+      .price-inputs input { width: 80px; height: 30px; }
+    }
+  }
+
+  .result-container {
+    padding: 12px;
+  }
+
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr); /* 移动端双列布局 */
+    gap: 12px;
+  }
+
+  .product-card {
+    .info-box {
+      padding: 10px;
+      .title { font-size: 13px; height: 36px; -webkit-line-clamp: 2; margin-bottom: 6px; }
+      .footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        .price { .num { font-size: 16px; } }
+        .user { width: 100%; justify-content: flex-start; }
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .product-card .info-box .title { font-size: 12px; height: 32px; }
+}
 </style>
