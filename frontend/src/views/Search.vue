@@ -119,7 +119,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import request, { resolveUrl } from '@/utils/request'
+import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { Search, ArrowLeft, Filter, CircleCloseFilled, CaretTop, CaretBottom } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -164,8 +164,13 @@ const doSearch = async () => {
     productList.value = (res.list || []).map(item => {
       return { 
         ...item, 
-        image: resolveUrl(item.image),
-        seller: item.seller ? { ...item.seller, avatar: resolveUrl(item.seller.avatar) } : item.seller
+        image: resolveBackendAssetUrl(item.image),
+        seller: item.seller
+          ? { ...item.seller, avatar: resolveBackendAssetUrl(item.seller.avatar) }
+          : item.seller,
+        user: item.user
+          ? { ...item.user, avatar: resolveBackendAssetUrl(item.user.avatar) }
+          : item.user
       }
     })
 

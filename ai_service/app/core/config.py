@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +16,17 @@ def _parse_float(name: str, default: float) -> float:
         return float(raw)
     except ValueError as exc:
         raise RuntimeError(f"Invalid float env var: {name}={raw}") from exc
+
+
+def _parse_allowed_origins(raw: str) -> list[str]:
+    # Support comma/newline/semicolon separated origins from Vercel env UI.
+    tokens = re.split(r"[,\n\r;]+", raw or "")
+    origins: list[str] = []
+    for token in tokens:
+        origin = token.strip().strip('"').strip("'")
+        if origin:
+            origins.append(origin)
+    return origins
 
 
 @dataclass(frozen=True)
@@ -39,11 +51,9 @@ class Settings:
         deepseek_timeout = _parse_float("DEEPSEEK_TIMEOUT", 30)
         backend_api_base_url = os.getenv("BACKEND_API_BASE_URL", "http://localhost:8081/api").strip()
         backend_timeout = _parse_float("BACKEND_TIMEOUT", 12)
-        allowed_origins = [
-            origin.strip()
-            for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-            if origin.strip()
-        ]
+        allowed_origins = _parse_allowed_origins(
+            os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+        )
         return cls(
             deepseek_api_key=deepseek_api_key,
             deepseek_base_url=deepseek_base_url,

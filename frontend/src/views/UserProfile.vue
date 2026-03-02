@@ -13,7 +13,7 @@
         <div class="left-sidebar animate-up">
           <div class="user-card">
             <div class="avatar-section">
-              <el-avatar :size="100" :src="userInfo.avatar || defaultAvatar" class="user-avatar" />
+              <el-avatar :size="100" :src="fixImageUrl(userInfo.avatar) || defaultAvatar" class="user-avatar" />
               <div class="edit-avatar-btn" @click="triggerFileUpload" v-if="isMe">
                 <el-icon><Camera /></el-icon>
               </div>
@@ -243,7 +243,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
-import request from '@/utils/request'
+import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Camera, Iphone, Edit, ArrowLeft, Goods, Star, Plus, Lock, Box, Message } from '@element-plus/icons-vue'
@@ -285,7 +285,7 @@ const previewAvatar = ref('')
 const selectedFile = ref(null)
 
 // 辅助函数：修复图片路径
-const fixImageUrl = (url) => resolveUrl(url)
+const fixImageUrl = (url) => resolveBackendAssetUrl(url)
 
 // 获取卖家名字 (收藏列表中使用)
 const getSellerName = (product) => {
@@ -319,21 +319,35 @@ const fetchUserData = async () => {
     if (!targetId) { router.push('/'); return }
 
     if (isMe.value) {
-      userInfo.value = localUser
+      userInfo.value = {
+        ...localUser,
+        avatar: fixImageUrl(localUser.avatar || localUser.avatar_url)
+      }
     } else {
       // Visitor mode: use query info or placeholder
       userInfo.value = {
         id: targetId,
         nickname: route.query.nickname || '神秘用户',
         username: route.query.nickname || `User_${targetId}`,
-        avatar: route.query.avatar || '',
+        avatar: fixImageUrl(route.query.avatar || ''),
         email: route.query.email || '未公开',
       }
     }
 
     // 获取发布的商品
     const resProducts = await request.get('/api/products', { params: { user_id: targetId } })
-    myProducts.value = (resProducts.list || []).filter(item => Number(item.user_id) === Number(targetId))
+    myProducts.value = (resProducts.list || [])
+      .filter(item => Number(item.user_id) === Number(targetId))
+      .map(item => ({
+        ...item,
+        image: fixImageUrl(item.image),
+        seller: item.seller
+          ? { ...item.seller, avatar: fixImageUrl(item.seller.avatar) }
+          : item.seller,
+        user: item.user
+          ? { ...item.user, avatar: fixImageUrl(item.user.avatar) }
+          : item.user
+      }))
     
     // Refine visitor info if possible from products
     if (!isMe.value && myProducts.value.length > 0) {
@@ -341,14 +355,30 @@ const fetchUserData = async () => {
        const seller = first.seller || first.user
        if (seller) {
          userInfo.value.nickname = seller.nickname || seller.username || userInfo.value.nickname
-         userInfo.value.avatar = seller.avatar || userInfo.value.avatar
+         userInfo.value.avatar = fixImageUrl(seller.avatar || userInfo.value.avatar)
        }
     }
 
     // 获取收藏列表 (Only for self)
     if (isMe.value) {
         const resFav = await request.get('/api/user/data?type=favorites')
-        myFavorites.value = (resFav.data || []).filter(item => item.product && item.product.id)
+        myFavorites.value = (resFav.data || [])
+          .filter(item => item.product && item.product.id)
+          .map(item => ({
+            ...item,
+            product: item.product
+              ? {
+                  ...item.product,
+                  image: fixImageUrl(item.product.image),
+                  seller: item.product.seller
+                    ? { ...item.product.seller, avatar: fixImageUrl(item.product.seller.avatar) }
+                    : item.product.seller,
+                  user: item.product.user
+                    ? { ...item.product.user, avatar: fixImageUrl(item.product.user.avatar) }
+                    : item.product.user
+                }
+              : item.product
+          }))
     } else {
         myFavorites.value = []
     }
@@ -374,7 +404,7 @@ watch(() => route.fullPath, () => {
 
 const openEditProfileModal = () => {
   Object.assign(profileForm, { nickname: userInfo.value.nickname, email: userInfo.value.email, code: '' })
-  if (!selectedFile.value) { previewAvatar.value = resolveUrl(userInfo.value.avatar) }
+  if (!selectedFile.value) { previewAvatar.value = fixImageUrl(userInfo.value.avatar) }
   editProfileVisible.value = true
 }
 
@@ -389,8 +419,8 @@ const submitProfileEdit = async () => {
       const uploadRes = await request.post('/api/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 
       let uploadedUrl = uploadRes.url
-      // 只要后端返回了地址，我们就使用 resolveUrl 统一处理，它会自动识别 http 开头的地址
-      newAvatarUrl = resolveUrl(uploadedUrl)
+      // 后端返回地址统一做资源归一化，避免各页面路径不一致
+      newAvatarUrl = fixImageUrl(uploadedUrl)
     }
 
     const updateData = { ...profileForm, avatar: newAvatarUrl }

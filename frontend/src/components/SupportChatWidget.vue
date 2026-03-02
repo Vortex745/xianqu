@@ -119,15 +119,22 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
+import { resolveBackendAssetUrl } from '@/utils/request'
 
 const resolveAIBase = () => {
-  const explicit = String(import.meta.env.VITE_AI_BASE_URL || '').trim()
-  if (explicit) return explicit.replace(/\/$/, '')
-
   const apiBase = String(import.meta.env.VITE_API_URL || '').trim()
-  if (apiBase) return `${apiBase.replace(/\/$/, '')}/ai`
+  const fallbackBase = apiBase ? `${apiBase.replace(/\/$/, '')}/ai` : '/ai'
+  const explicit = String(import.meta.env.VITE_AI_BASE_URL || '').trim()
+  if (explicit) {
+    const normalized = explicit.replace(/\/$/, '')
+    // Force legacy direct host to use backend /ai proxy to avoid CORS preflight failures.
+    if (/^https?:\/\/ai\.530745\.xyz(?:\/.*)?$/i.test(normalized)) {
+      return fallbackBase
+    }
+    return normalized
+  }
 
-  return '/ai'
+  return fallbackBase
 }
 
 const apiBase = resolveAIBase()
@@ -289,7 +296,7 @@ const ensureLoggedIn = () => {
 
 const resolveUserAvatar = () => {
   const source = currentUser.value || {}
-  return source.avatar_url || source.avatar || defaultUserAvatar
+  return resolveBackendAssetUrl(source.avatar_url || source.avatar) || defaultUserAvatar
 }
 
 const getMessageAvatar = (msg) => {
@@ -527,6 +534,9 @@ const closeDialog = () => {
 const parseSendErrorMessage = (error) => {
   const message = String(error?.message || '').trim()
   const lower = message.toLowerCase()
+  if (lower.includes('cors') || lower.includes('preflight') || lower.includes('disallowed cors origin')) {
+    return '服务跨域配置异常，请稍后重试'
+  }
   if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('连接')) {
     return '网络连接异常，请检查网络后重试'
   }

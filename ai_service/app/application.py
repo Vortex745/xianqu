@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,9 +9,12 @@ from .core.config import Settings
 from .langchain_module.service import LangChainCustomerService
 from .model_manager import ModelManager
 
+logger = logging.getLogger(__name__)
+
 
 def create_app() -> FastAPI:
     settings = Settings.from_env()
+    logger.info("CORS allowed origins: %s", settings.allowed_origins)
 
     # Initialize model manager for dynamic model switching
     model_manager = ModelManager(

@@ -8,13 +8,35 @@ const request = axios.create({
 
 export const resolveUrl = (path) => {
     if (!path) return ''
-    if (path.startsWith('http') || path.startsWith('https') || path.startsWith('data:')) {
+    if (path.startsWith('http') || path.startsWith('https') || path.startsWith('data:') || path.startsWith('blob:')) {
         return path.replace('localhost', '127.0.0.1') // Cleanup for local consistency
     }
     const apiBase = import.meta.env.VITE_API_URL || ''
     const cleanBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase
     const cleanPath = path.startsWith('/') ? path : `/${path}`
     return `${cleanBase}${cleanPath}`
+}
+
+export const resolveBackendAssetUrl = (path) => {
+    if (!path) return ''
+    const value = String(path).trim()
+    if (!value) return ''
+    if (
+        value.startsWith('http') ||
+        value.startsWith('https') ||
+        value.startsWith('data:') ||
+        value.startsWith('blob:')
+    ) {
+        return resolveUrl(value)
+    }
+    if (
+        value.startsWith('/avatars/') ||
+        value.startsWith('/images/') ||
+        value.startsWith('/assets/')
+    ) {
+        return value
+    }
+    return resolveUrl(value)
 }
 
 // 请求拦截器

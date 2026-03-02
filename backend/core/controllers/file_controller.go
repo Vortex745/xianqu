@@ -20,7 +20,7 @@ import (
 
 type FileController struct{}
 
-// Upload 处理文件上传 (支持直传 Superbed 图床)
+// Upload 处理文件上传 (支持直传 ImgBB 图床)
 func (fc *FileController) Upload(c *gin.Context) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -81,6 +81,7 @@ func (fc *FileController) Upload(c *gin.Context) {
 
 	// 检查是否配置了 ImgBB API Key
 	apiKey := os.Getenv("IMGBB_API_KEY")
+	fallbackReason := "imgbb_not_configured"
 	if apiKey != "" {
 		// 1. 准备向 ImgBB 发送请求
 		body := &bytes.Buffer{}
@@ -108,6 +109,7 @@ func (fc *FileController) Upload(c *gin.Context) {
 		resp, err := client.Do(req)
 		if err != nil {
 			fmt.Println("ImgBB 上传连接失败:", err)
+			fallbackReason = "imgbb_connection_failed"
 			goto fallback
 		}
 		defer resp.Body.Close()
@@ -127,15 +129,17 @@ func (fc *FileController) Upload(c *gin.Context) {
 			return
 		} else {
 			fmt.Printf("ImgBB 接口返回错误, body: %s\n", string(respBody))
+			fallbackReason = "imgbb_api_error"
 		}
 	}
 
 fallback:
-	// 备份方案：如果 Token 未配置或 Superbed 上传失败，返回 Base64 Data URI
+	// 备份方案：如果未配置 IMGBB_API_KEY 或 ImgBB 上传失败，返回 Base64 Data URI
+	fmt.Printf("Upload fallback to data URI: reason=%s, filename=%s, bytes=%d\n", fallbackReason, file.Filename, len(finalData))
 	encoded := base64.StdEncoding.EncodeToString(finalData)
 	c.JSON(http.StatusOK, gin.H{
 		"url":  fmt.Sprintf("data:%s;base64,%s", mimeType, encoded),
-		"info": "Uploaded as Base64 (Superbed not configured or failed)",
+		"info": "Uploaded as Base64 (ImgBB not configured or failed)",
 	})
 }
 

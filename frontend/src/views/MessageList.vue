@@ -82,7 +82,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import request from '@/utils/request'
+import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { ArrowLeft, ArrowRight, ChatDotRound, Bell } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -114,7 +114,10 @@ const fetchContacts = async () => {
   loading.value = true
   try {
     const res = await request.get('/api/chat/contacts')
-    contacts.value = res.data || []
+    contacts.value = (res.data || []).map(item => ({
+      ...item,
+      avatar: resolveBackendAssetUrl(item.avatar)
+    }))
   } catch (e) {
     console.error('获取消息列表失败:', e)
   } finally {
