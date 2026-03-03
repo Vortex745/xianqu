@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -27,10 +28,19 @@ def mask_sensitive_text(raw: str) -> str:
 
 class AgentTelemetryLogger:
     def __init__(self, directory: str) -> None:
-        self._directory = Path(directory)
-        self._directory.mkdir(parents=True, exist_ok=True)
+        self._directory = self._resolve_directory(directory)
         self._path = self._directory / "turns.jsonl"
         self._lock = Lock()
+
+    def _resolve_directory(self, directory: str) -> Path:
+        preferred = Path(directory)
+        try:
+            preferred.mkdir(parents=True, exist_ok=True)
+            return preferred
+        except OSError:
+            fallback = Path(tempfile.gettempdir()) / "xianqu-agent-telemetry"
+            fallback.mkdir(parents=True, exist_ok=True)
+            return fallback
 
     def log_turn(self, payload: dict[str, Any]) -> None:
         record = {
