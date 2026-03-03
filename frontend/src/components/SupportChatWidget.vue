@@ -138,6 +138,24 @@ const resolveAIBase = () => {
 }
 
 const apiBase = resolveAIBase()
+const isCrossOriginAIRequest = () => {
+  if (typeof window === 'undefined') return false
+  try {
+    return new URL(apiBase, window.location.origin).origin !== window.location.origin
+  } catch (error) {
+    return false
+  }
+}
+
+const isLikelyCorsOrPreflightFailure = (error) => {
+  const message = String(error?.message || '').trim().toLowerCase()
+  if (!message) return false
+  if (message.includes('cors') || message.includes('preflight') || message.includes('disallowed cors origin')) {
+    return true
+  }
+  return isCrossOriginAIRequest() && (error?.name === 'TypeError' || error instanceof TypeError) && message.includes('failed to fetch')
+}
+
 const route = useRoute()
 const router = useRouter()
 const MODE_SUPPORT = 'support'
@@ -532,11 +550,11 @@ const closeDialog = () => {
 }
 
 const parseSendErrorMessage = (error) => {
+  if (isLikelyCorsOrPreflightFailure(error)) {
+    return '跨域或预检失败，请稍后重试'
+  }
   const message = String(error?.message || '').trim()
   const lower = message.toLowerCase()
-  if (lower.includes('cors') || lower.includes('preflight') || lower.includes('disallowed cors origin')) {
-    return '服务跨域配置异常，请稍后重试'
-  }
   if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('连接')) {
     return '网络连接异常，请检查网络后重试'
   }
@@ -559,6 +577,20 @@ const parseSendErrorMessage = (error) => {
     return 'AI 助手繁忙中，请稍后再试'
   }
   return '消息发送失败，请稍后重试'
+}
+
+const notifyAgentResult = (rawText = '') => {
+  const text = forcePlainText(rawText)
+  if (!text || activeMode.value !== MODE_AGENT) return
+  if (text.includes('加入购物车')) {
+    if (text.includes('未找到') || text.includes('没找到') || text.includes('失败')) {
+      ElMessage.warning(text)
+      return
+    }
+    if (text.includes('成功') || text.includes('已')) {
+      ElMessage.success(text)
+    }
+  }
 }
 
 const sendMessage = async () => {
@@ -603,7 +635,9 @@ const sendMessage = async () => {
       localStorage.setItem(getSessionStorageKey(mode), data.session_id)
     }
     updateMessageStatus(pendingId, 'replied', mode)
-    pushMessage('assistant', data?.answer || '我这边没拿到回复。', { state: 'normal', mode })
+    const answerText = data?.answer || '我这边没拿到回复。'
+    pushMessage('assistant', answerText, { state: 'normal', mode })
+    notifyAgentResult(answerText)
     assistantState.value = 'normal'
   } catch (error) {
     console.error('chat request failed:', error)

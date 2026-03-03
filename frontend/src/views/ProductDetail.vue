@@ -17,19 +17,18 @@
 
         <div class="gallery-section">
           <div class="image-stage">
-            <el-image
-                ref="imageRef"
-                :src="resolveUrl(product.image || defaultImg)"
-                fit="contain"
-                class="main-img"
-                :class="{ 'is-sold': product.status !== 1 }"
-                :preview-src-list="[resolveUrl(product.image || defaultImg)]"
-                hide-on-click-modal
-            >
-              <template #error>
-                <div class="image-slot"><el-icon><Picture /></el-icon></div>
-              </template>
-            </el-image>
+            <button class="stage-image-button" type="button" @click="openViewer(activeGalleryIndex)">
+              <el-image
+                  :src="activeGalleryImage"
+                  fit="contain"
+                  class="main-img"
+                  :class="{ 'is-sold': product.status !== 1 }"
+              >
+                <template #error>
+                  <div class="image-slot"><el-icon><Picture /></el-icon></div>
+                </template>
+              </el-image>
+            </button>
 
             <div v-if="product.status !== 1" class="status-stamp">
               <span>{{ product.status === 2 ? '已卖出' : '已下架' }}</span>
@@ -37,14 +36,30 @@
           </div>
 
           <div class="gallery-footer">
-            <div class="zoom-tip" @click="showLargeImage" style="cursor: pointer;"><el-icon><ZoomIn /></el-icon> 点击查看大图</div>
+            <div class="thumb-strip" v-if="galleryImages.length">
+              <button
+                  v-for="(image, index) in galleryImages"
+                  :key="`${image}-${index}`"
+                  class="thumb-btn"
+                  :class="{ active: activeGalleryIndex === index }"
+                  type="button"
+                  @click="selectGalleryImage(index)"
+              >
+                <img :src="image" :alt="`${product.name || '商品'}图片 ${index + 1}`" />
+              </button>
+            </div>
+
+            <div class="zoom-tip" @click="openViewer(activeGalleryIndex)" style="cursor: pointer;">
+              <el-icon><ZoomIn /></el-icon>
+              查看大图 · {{ activeGalleryIndex + 1 }}/{{ galleryImages.length }}
+            </div>
           </div>
         </div>
 
         <div class="info-section">
           <div class="info-scroll-area">
             <div class="seller-bar" @click="goToUserPage">
-              <el-avatar :size="44" :src="resolveUrl(product.seller?.avatar || defaultAvatar)" class="seller-avatar" />
+              <el-avatar :size="44" :src="product.seller?.avatar || defaultAvatar" class="seller-avatar" />
               <div class="seller-info">
                 <div class="name">{{ product.seller?.nickname || product.seller?.username || '神秘卖家' }}</div>
                 <div class="tags">
@@ -119,17 +134,85 @@
         <button class="btn-back" @click="goBack">返回首页</button>
       </div>
     </div>
+
+    <transition name="viewer-fade">
+      <div
+          v-if="viewerVisible"
+          class="viewer-mask"
+          :style="viewerMaskStyle"
+          @click.self="closeViewer"
+      >
+        <section class="viewer-shell" :style="viewerSheetStyle">
+          <div class="viewer-topbar">
+            <div class="viewer-index">{{ viewerIndexLabel }}</div>
+            <div class="viewer-tools">
+              <button class="viewer-tool" type="button" @click="zoomViewer(-0.25)">
+                <span class="viewer-tool-label">-</span>
+              </button>
+              <button class="viewer-tool" type="button" @click="zoomViewer(0.25)">
+                <span class="viewer-tool-label">+</span>
+              </button>
+              <button class="viewer-tool close" type="button" @click="closeViewer">
+                <el-icon><Close /></el-icon>
+              </button>
+            </div>
+          </div>
+
+          <div
+              class="viewer-stage"
+              @wheel.prevent="handleWheelZoom"
+              @touchstart="handleViewerTouchStart"
+              @touchmove="handleViewerTouchMove"
+              @touchend="handleViewerTouchEnd"
+              @touchcancel="handleViewerTouchEnd"
+          >
+            <button v-if="canSwitchImage" class="viewer-nav prev" type="button" @click="changeViewerImage(-1)">
+              <el-icon><ArrowLeft /></el-icon>
+            </button>
+
+            <div class="viewer-image-wrap">
+              <img
+                  :src="viewerImage"
+                  :alt="`${product.name || '商品'}大图 ${viewerIndex + 1}`"
+                  class="viewer-image"
+                  :style="viewerImageStyle"
+                  draggable="false"
+              />
+            </div>
+
+            <button v-if="canSwitchImage" class="viewer-nav next" type="button" @click="changeViewerImage(1)">
+              <el-icon><ArrowRight /></el-icon>
+            </button>
+          </div>
+
+          <div class="viewer-hint">双指缩放，左右滑动切图，下滑关闭</div>
+
+          <div class="viewer-filmstrip" v-if="galleryImages.length > 1">
+            <button
+                v-for="(image, index) in galleryImages"
+                :key="`viewer-${image}-${index}`"
+                class="viewer-thumb"
+                :class="{ active: viewerIndex === index }"
+                type="button"
+                @click="setViewerIndex(index)"
+            >
+              <img :src="image" :alt="`${product.name || '商品'}缩略图 ${index + 1}`" />
+            </button>
+          </div>
+        </section>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import request, { resolveUrl } from '@/utils/request'
+import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import {
   ArrowLeft, Picture, ZoomIn, View, Star, StarFilled,
-  ArrowRight, Location, MoreFilled
+  ArrowRight, Location, MoreFilled, Close
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -140,14 +223,72 @@ const isLiked = ref(false)
 const buyLoading = ref(false)
 const collectCount = ref(0)
 const user = JSON.parse(localStorage.getItem('user') || 'null')
-const imageRef = ref(null)
+const activeGalleryIndex = ref(0)
+const viewerVisible = ref(false)
+const viewerIndex = ref(0)
+const viewerScale = ref(1)
+const viewerOffsetX = ref(0)
+const viewerOffsetY = ref(0)
+const viewerSwipeOffsetX = ref(0)
+const viewerDismissOffsetY = ref(0)
 
 const defaultImg = 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png'
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
+const touchState = {
+  mode: 'idle',
+  startX: 0,
+  startY: 0,
+  lastX: 0,
+  lastY: 0,
+  startScale: 1,
+  startOffsetX: 0,
+  startOffsetY: 0,
+  pinchDistance: 0
+}
 
 const isOwner = computed(() => {
   return user && product.value.user_id && String(user.id) === String(product.value.user_id)
 })
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
+
+const normalizeAsset = (value) => resolveBackendAssetUrl(value) || ''
+
+const extractImageCandidates = (source) => {
+  const list = []
+
+  const pushValue = (value) => {
+    if (!value) return
+    if (Array.isArray(value)) {
+      value.forEach(pushValue)
+      return
+    }
+    if (typeof value === 'object') {
+      pushValue(value.image || value.url || value.src)
+      return
+    }
+
+    const text = String(value).trim()
+    if (!text) return
+
+    if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+      try {
+        pushValue(JSON.parse(text))
+        return
+      } catch (error) {}
+    }
+
+    if (!/^https?:\/\//i.test(text) && !text.startsWith('data:') && !text.startsWith('blob:') && /[\n,]/.test(text)) {
+      text.split(/[\n,]+/).forEach(pushValue)
+      return
+    }
+
+    list.push(text)
+  }
+
+  pushValue(source)
+  return list
+}
 
 const isOptionEnabled = (value) => {
   return value === true || value === 1 || value === '1' || value === 'true'
@@ -165,6 +306,47 @@ const selectedTradeOptions = computed(() => {
     .map((item) => item.label)
 })
 
+const galleryImages = computed(() => {
+  const candidates = [
+    ...extractImageCandidates(product.value.images),
+    ...extractImageCandidates(product.value.image_list),
+    ...extractImageCandidates(product.value.imageList),
+    ...extractImageCandidates(product.value.gallery),
+    ...extractImageCandidates(product.value.image)
+  ]
+
+  const normalized = candidates
+    .map(normalizeAsset)
+    .filter(Boolean)
+
+  const uniqueImages = [...new Set(normalized)]
+  return uniqueImages.length ? uniqueImages : [defaultImg]
+})
+
+const activeGalleryImage = computed(() => {
+  return galleryImages.value[activeGalleryIndex.value] || galleryImages.value[0] || defaultImg
+})
+
+const viewerImage = computed(() => {
+  return galleryImages.value[viewerIndex.value] || activeGalleryImage.value
+})
+
+const canSwitchImage = computed(() => galleryImages.value.length > 1)
+
+const viewerIndexLabel = computed(() => `${viewerIndex.value + 1} / ${galleryImages.value.length}`)
+
+const viewerMaskStyle = computed(() => ({
+  background: `rgba(7, 9, 14, ${Math.max(0.28, 0.92 - viewerDismissOffsetY.value / 420)})`
+}))
+
+const viewerSheetStyle = computed(() => ({
+  transform: `translate3d(0, ${viewerDismissOffsetY.value}px, 0)`
+}))
+
+const viewerImageStyle = computed(() => ({
+  transform: `translate3d(${viewerOffsetX.value + viewerSwipeOffsetX.value}px, ${viewerOffsetY.value}px, 0) scale(${viewerScale.value})`
+}))
+
 const goBack = () => {
   if (window.history.length > 1) {
     router.go(-1)
@@ -179,13 +361,174 @@ const formatDate = (str) => {
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
-const showLargeImage = () => {
-  if (imageRef.value && imageRef.value.$el) {
-    const imgDiv = imageRef.value.$el.querySelector('.el-image__inner')
-    if (imgDiv) {
-      imgDiv.click()
+const resetViewerMotion = () => {
+  viewerScale.value = 1
+  viewerOffsetX.value = 0
+  viewerOffsetY.value = 0
+  viewerSwipeOffsetX.value = 0
+  viewerDismissOffsetY.value = 0
+}
+
+const selectGalleryImage = (index) => {
+  activeGalleryIndex.value = clamp(index, 0, galleryImages.value.length - 1)
+}
+
+const setViewerIndex = (index) => {
+  const nextIndex = clamp(index, 0, galleryImages.value.length - 1)
+  viewerIndex.value = nextIndex
+  activeGalleryIndex.value = nextIndex
+  resetViewerMotion()
+}
+
+const changeViewerImage = (delta) => {
+  if (!canSwitchImage.value) return
+  const total = galleryImages.value.length
+  const nextIndex = (viewerIndex.value + delta + total) % total
+  setViewerIndex(nextIndex)
+}
+
+const zoomViewer = (delta) => {
+  const nextScale = clamp(Number((viewerScale.value + delta).toFixed(2)), 1, 4)
+  viewerScale.value = nextScale
+  if (nextScale === 1) {
+    viewerOffsetX.value = 0
+    viewerOffsetY.value = 0
+  }
+}
+
+const openViewer = async (index = activeGalleryIndex.value) => {
+  setViewerIndex(index)
+  viewerVisible.value = true
+  await nextTick()
+}
+
+const closeViewer = () => {
+  viewerVisible.value = false
+}
+
+const handleViewerKeydown = (event) => {
+  if (!viewerVisible.value) return
+  if (event.key === 'Escape') {
+    closeViewer()
+    return
+  }
+  if (event.key === 'ArrowLeft') {
+    changeViewerImage(-1)
+    return
+  }
+  if (event.key === 'ArrowRight') {
+    changeViewerImage(1)
+  }
+}
+
+const getTouchDistance = (touchA, touchB) => {
+  const deltaX = touchA.clientX - touchB.clientX
+  const deltaY = touchA.clientY - touchB.clientY
+  return Math.hypot(deltaX, deltaY)
+}
+
+const handleViewerTouchStart = (event) => {
+  if (!viewerVisible.value || !event.touches.length) return
+
+  if (event.touches.length === 2) {
+    touchState.mode = 'pinch'
+    touchState.startScale = viewerScale.value
+    touchState.startOffsetX = viewerOffsetX.value
+    touchState.startOffsetY = viewerOffsetY.value
+    touchState.pinchDistance = getTouchDistance(event.touches[0], event.touches[1])
+    viewerSwipeOffsetX.value = 0
+    viewerDismissOffsetY.value = 0
+    return
+  }
+
+  const touch = event.touches[0]
+  touchState.mode = 'pending'
+  touchState.startX = touch.clientX
+  touchState.startY = touch.clientY
+  touchState.lastX = touch.clientX
+  touchState.lastY = touch.clientY
+  touchState.startOffsetX = viewerOffsetX.value
+  touchState.startOffsetY = viewerOffsetY.value
+}
+
+const handleViewerTouchMove = (event) => {
+  if (!viewerVisible.value || !event.touches.length) return
+
+  if (event.touches.length === 2) {
+    if (touchState.mode !== 'pinch') {
+      handleViewerTouchStart(event)
+      return
+    }
+    const nextDistance = getTouchDistance(event.touches[0], event.touches[1])
+    if (!touchState.pinchDistance) return
+    const ratio = nextDistance / touchState.pinchDistance
+    viewerScale.value = clamp(Number((touchState.startScale * ratio).toFixed(2)), 1, 4)
+    return
+  }
+
+  const touch = event.touches[0]
+  const deltaX = touch.clientX - touchState.startX
+  const deltaY = touch.clientY - touchState.startY
+  touchState.lastX = touch.clientX
+  touchState.lastY = touch.clientY
+
+  if (touchState.mode === 'pending') {
+    if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return
+    if (viewerScale.value > 1.02) {
+      touchState.mode = 'pan'
+    } else if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
+      touchState.mode = 'dismiss'
+    } else {
+      touchState.mode = 'swipe'
     }
   }
+
+  if (touchState.mode === 'pan') {
+    event.preventDefault()
+    viewerOffsetX.value = touchState.startOffsetX + deltaX
+    viewerOffsetY.value = touchState.startOffsetY + deltaY
+    return
+  }
+
+  if (touchState.mode === 'dismiss') {
+    viewerDismissOffsetY.value = Math.max(0, deltaY)
+    return
+  }
+
+  if (touchState.mode === 'swipe') {
+    viewerSwipeOffsetX.value = deltaX
+  }
+}
+
+const handleViewerTouchEnd = () => {
+  if (!viewerVisible.value) return
+
+  const deltaX = touchState.lastX - touchState.startX
+  const deltaY = touchState.lastY - touchState.startY
+
+  if (touchState.mode === 'dismiss') {
+    if (deltaY > 120) {
+      closeViewer()
+    } else {
+      viewerDismissOffsetY.value = 0
+    }
+  } else if (touchState.mode === 'swipe') {
+    if (Math.abs(deltaX) > 70 && canSwitchImage.value) {
+      changeViewerImage(deltaX < 0 ? 1 : -1)
+    }
+    viewerSwipeOffsetX.value = 0
+  } else if (touchState.mode === 'pan' && viewerScale.value <= 1.02) {
+    resetViewerMotion()
+  } else if (touchState.mode === 'pinch' && viewerScale.value <= 1.02) {
+    resetViewerMotion()
+  }
+
+  touchState.mode = 'idle'
+}
+
+const handleWheelZoom = (event) => {
+  if (!viewerVisible.value) return
+  zoomViewer(event.deltaY < 0 ? 0.2 : -0.2)
 }
 
 const goToUserPage = () => {
@@ -204,14 +547,14 @@ const fetchDetail = async () => {
   loading.value = true
   try {
     const res = await request.get(`/api/products/${route.params.id}`)
-    let data = res.data
+    const data = res.data || {}
 
     // 图片路径处理
-    if (data.image) data.image = resolveUrl(data.image)
+    if (data.image) data.image = normalizeAsset(data.image)
 
     // 头像处理
     if (data.seller && data.seller.avatar) {
-      data.seller.avatar = resolveUrl(data.seller.avatar)
+      data.seller.avatar = normalizeAsset(data.seller.avatar)
     }
 
     data.is_negotiable = isOptionEnabled(data.is_negotiable ?? data.isNegotiable)
@@ -219,6 +562,8 @@ const fetchDetail = async () => {
     data.is_self_pickup = isOptionEnabled(data.is_self_pickup ?? data.isSelfPickup)
 
     product.value = data
+    activeGalleryIndex.value = 0
+    viewerIndex.value = 0
 
     // 读取真实收藏数
     collectCount.value = res.collect_count || 0
@@ -348,6 +693,36 @@ const handleBuy = async () => {
 onMounted(() => {
   window.scrollTo(0, 0)
   fetchDetail()
+  window.addEventListener('keydown', handleViewerKeydown)
+})
+
+watch(galleryImages, (images) => {
+  if (!images.length) return
+  if (activeGalleryIndex.value > images.length - 1) {
+    activeGalleryIndex.value = 0
+  }
+  if (viewerIndex.value > images.length - 1) {
+    viewerIndex.value = 0
+  }
+})
+
+watch(viewerVisible, (visible) => {
+  if (typeof document === 'undefined') return
+  document.body.style.overflow = visible ? 'hidden' : ''
+  if (!visible) {
+    resetViewerMotion()
+  }
+})
+
+watch(() => route.params.id, () => {
+  fetchDetail()
+})
+
+onBeforeUnmount(() => {
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = ''
+  }
+  window.removeEventListener('keydown', handleViewerKeydown)
 })
 </script>
 
@@ -428,6 +803,18 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
     display: flex; align-items: center; justify-content: center;
     padding: 30px;
 
+    .stage-image-button {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+      padding: 0;
+      cursor: zoom-in;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .main-img {
       width: 100%; height: 100%; object-fit: contain;
       filter: drop-shadow(0 10px 30px rgba(0,0,0,0.1));
@@ -450,7 +837,60 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   }
 
   .gallery-footer {
-    height: 60px; display: flex; align-items: center; justify-content: center;
+    padding: 14px 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    min-height: 92px;
+
+    .thumb-strip {
+      width: 100%;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      justify-content: center;
+
+      &::-webkit-scrollbar {
+        height: 4px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.12);
+        border-radius: 999px;
+      }
+    }
+
+    .thumb-btn {
+      width: 58px;
+      height: 58px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      padding: 0;
+      background: #fff;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      &:hover {
+        transform: translateY(-2px);
+      }
+
+      &.active {
+        border-color: rgba(255, 223, 93, 0.95);
+      }
+    }
+
     .zoom-tip { font-size: 12px; color: #999; display: flex; align-items: center; gap: 4px; }
   }
 }
@@ -605,6 +1045,196 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
 
 .empty-state { text-align: center; margin-top: 100px; .btn-back { background: $dark; color: #fff; border: none; padding: 10px 24px; border-radius: 99px; cursor: pointer; } }
 
+.viewer-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.viewer-shell {
+  width: min(1180px, 100%);
+  height: min(92vh, 860px);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 223, 93, 0.16), transparent 26%),
+    rgba(16, 18, 24, 0.96);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.viewer-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  color: rgba(255,255,255,0.88);
+}
+
+.viewer-index {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.viewer-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viewer-tool {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+
+  &:hover {
+    transform: translateY(-1px);
+    background: rgba(255,255,255,0.14);
+  }
+
+  &.close {
+    background: rgba(255, 223, 93, 0.14);
+    color: #ffdf5d;
+  }
+}
+
+.viewer-tool-label {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.viewer-stage {
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 0 18px 14px;
+  touch-action: none;
+}
+
+.viewer-image-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.viewer-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  transform-origin: center center;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.viewer-nav {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+
+  &:hover {
+    transform: scale(1.04);
+    background: rgba(255,255,255,0.16);
+  }
+}
+
+.viewer-hint {
+  text-align: center;
+  color: rgba(255,255,255,0.62);
+  font-size: 12px;
+  padding: 0 18px 12px;
+}
+
+.viewer-filmstrip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 0 18px 18px;
+  justify-content: center;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.18);
+    border-radius: 999px;
+  }
+}
+
+.viewer-thumb {
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: rgba(255,255,255,0.08);
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  &.active {
+    border-color: rgba(255, 223, 93, 0.9);
+  }
+}
+
+.viewer-fade-enter-active,
+.viewer-fade-leave-active {
+  transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.viewer-fade-enter-from,
+.viewer-fade-leave-to {
+  opacity: 0;
+}
+
 /* 动画定义 */
 .animate-up { animation: fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .animate-down { animation: fadeInDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -620,6 +1250,27 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   .gallery-section { height: 400px; border-right: none; border-bottom: 1px solid #eee; }
   .info-scroll-area { max-height: none; padding: 16px 20px; }
   .action-dock { position: sticky; bottom: 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.05); }
+
+  .viewer-mask {
+    padding: 0;
+  }
+
+  .viewer-shell {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .viewer-stage {
+    gap: 8px;
+    padding: 0 10px 10px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .viewer-nav {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -646,6 +1297,54 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
       gap: 8px;
       .btn { height: 40px; font-size: 14px; }
     }
+  }
+
+  .gallery-footer {
+    padding: 12px 12px 16px;
+
+    .thumb-strip {
+      justify-content: flex-start;
+    }
+
+    .thumb-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+    }
+  }
+
+  .viewer-topbar {
+    padding: 12px;
+  }
+
+  .viewer-tools {
+    gap: 6px;
+  }
+
+  .viewer-tool {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .viewer-stage {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 8px 8px;
+  }
+
+  .viewer-nav {
+    display: none;
+  }
+
+  .viewer-filmstrip {
+    justify-content: flex-start;
+    padding: 0 12px 14px;
+  }
+
+  .viewer-thumb {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
   }
 }
 </style>

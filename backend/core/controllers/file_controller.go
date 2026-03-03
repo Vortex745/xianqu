@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nfnt/resize"
@@ -80,7 +81,7 @@ func (fc *FileController) Upload(c *gin.Context) {
 	}
 
 	// 检查是否配置了 ImgBB API Key
-	apiKey := os.Getenv("IMGBB_API_KEY")
+	apiKey := strings.TrimSpace(os.Getenv("IMGBB_API_KEY"))
 	fallbackReason := "imgbb_not_configured"
 	if apiKey != "" {
 		// 1. 准备向 ImgBB 发送请求
@@ -93,7 +94,10 @@ func (fc *FileController) Upload(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "构建上传请求失败"})
 			return
 		}
-		part.Write(finalData)
+		if _, err := part.Write(finalData); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "写入上传内容失败"})
+			return
+		}
 		writer.Close()
 
 		uploadUrl := fmt.Sprintf("https://api.imgbb.com/1/upload?key=%s", apiKey)
@@ -105,7 +109,7 @@ func (fc *FileController) Upload(c *gin.Context) {
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 
 		// 2. 执行请求
-		client := &http.Client{}
+		client := &http.Client{Timeout: 15 * time.Second}
 		resp, err := client.Do(req)
 		if err != nil {
 			fmt.Println("ImgBB 上传连接失败:", err)

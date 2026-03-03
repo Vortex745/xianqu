@@ -3,8 +3,8 @@
     <nav class="navbar">
       <div class="container navbar-inner">
         <div class="left" @click="$router.push('/')">
-          <IconifySymbol icon="lucide:arrow-left" size="16" color="#667183" />
-          <span class="title">返回首页</span>
+          <IconifySymbol icon="lucide:house" size="16" color="#667183" />
+          <span class="title">回首页</span>
         </div>
         <div class="page-title">
           <IconifySymbol icon="lucide:shopping-bag" size="18" color="#1f2532" />

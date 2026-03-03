@@ -111,7 +111,7 @@
                         <span class="currency">¥</span><span class="amount">{{ item.product?.price }}</span>
                       </div>
                       <div class="seller-mini">
-                        <el-avatar :size="16" :src="defaultAvatar" class="mini-avatar" />
+                        <el-avatar :size="16" :src="fixImageUrl(item.product?.seller?.avatar || item.product?.user?.avatar) || defaultAvatar" class="mini-avatar" />
                         <span class="name">{{ getSellerName(item.product) }}</span>
                       </div>
                     </div>
@@ -432,7 +432,11 @@ const submitProfileEdit = async () => {
     await request.put('/api/user/profile', updateData)
 
     ElMessage.success('保存修改成功')
-    const newUser = { ...userInfo.value, ...updateData }
+    const newUser = {
+      ...userInfo.value,
+      ...updateData,
+      avatar: fixImageUrl(updateData.avatar || userInfo.value.avatar)
+    }
     localStorage.setItem('user', JSON.stringify(newUser))
     userInfo.value = newUser
     selectedFile.value = null

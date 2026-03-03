@@ -1,39 +1,60 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
+const rawApiBase = String(import.meta.env.VITE_API_URL || '').trim()
+const apiBase = rawApiBase.replace(/\/$/, '')
+const LEGACY_LOCAL_ORIGIN_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/i
+const FRONTEND_STATIC_ASSET_PREFIXES = [
+    '/avatars/ai/',
+    '/avatars/user-default-',
+    '/images/',
+    '/favicon.ico',
+    '/icon.ico'
+]
+
 const request = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/',
+    baseURL: apiBase || '/',
     timeout: 15000
 })
 
-export const resolveUrl = (path) => {
-    if (!path) return ''
-    if (path.startsWith('http') || path.startsWith('https') || path.startsWith('data:') || path.startsWith('blob:')) {
-        return path.replace('localhost', '127.0.0.1') // Cleanup for local consistency
+const isAbsoluteAssetUrl = (value = '') => {
+    return /^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')
+}
+
+const rewriteLegacyLocalUrl = (value = '') => {
+    if (!value || !apiBase || !LEGACY_LOCAL_ORIGIN_RE.test(value)) {
+        return value
     }
-    const apiBase = import.meta.env.VITE_API_URL || ''
-    const cleanBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase
-    const cleanPath = path.startsWith('/') ? path : `/${path}`
-    return `${cleanBase}${cleanPath}`
+    try {
+        const legacyUrl = new URL(value)
+        return `${apiBase}${legacyUrl.pathname}${legacyUrl.search}${legacyUrl.hash}`
+    } catch (error) {
+        return value.replace(LEGACY_LOCAL_ORIGIN_RE, apiBase)
+    }
+}
+
+const isFrontendStaticAsset = (value = '') => {
+    return FRONTEND_STATIC_ASSET_PREFIXES.some(prefix => value.startsWith(prefix))
+}
+
+export const resolveUrl = (path) => {
+    const value = String(path || '').trim()
+    if (!value) return ''
+    if (isAbsoluteAssetUrl(value)) {
+        return rewriteLegacyLocalUrl(value)
+    }
+    const cleanPath = value.startsWith('/') ? value : `/${value}`
+    return apiBase ? `${apiBase}${cleanPath}` : cleanPath
 }
 
 export const resolveBackendAssetUrl = (path) => {
     if (!path) return ''
     const value = String(path).trim()
     if (!value) return ''
-    if (
-        value.startsWith('http') ||
-        value.startsWith('https') ||
-        value.startsWith('data:') ||
-        value.startsWith('blob:')
-    ) {
+    if (isAbsoluteAssetUrl(value)) {
         return resolveUrl(value)
     }
-    if (
-        value.startsWith('/avatars/') ||
-        value.startsWith('/images/') ||
-        value.startsWith('/assets/')
-    ) {
+    if (isFrontendStaticAsset(value)) {
         return value
     }
     return resolveUrl(value)

@@ -34,7 +34,7 @@
             :on-error="handleUploadError"
           >
             <div class="upload-area" :class="{ 'has-image': publishForm.image }">
-              <img v-if="publishForm.image" :src="resolveUrl(publishForm.image)" class="preview-img" />
+              <img v-if="publishForm.image" :src="resolveBackendAssetUrl(publishForm.image)" class="preview-img" />
               <div v-else class="upload-placeholder">
                 <el-icon class="upload-icon"><Plus /></el-icon>
                 <div class="upload-text">点击上传封面图</div>
@@ -163,7 +163,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import request, { resolveUrl } from '@/utils/request'
+import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { ElMessage, ElLoading } from 'element-plus'
 import { Plus, Switch, Van, Goods, Scissor, Close, Location, Aim, Select } from '@element-plus/icons-vue'
 
@@ -324,7 +324,7 @@ const fetchProductData = async () => {
       price: data.price,
       count: data.count || 1,
       category: data.category,
-      image: resolveUrl(data.image),
+      image: resolveBackendAssetUrl(data.image),
       area: data.area || '',
       status: data.status,
       is_negotiable: toBool(data.is_negotiable ?? data.isNegotiable),
@@ -342,7 +342,7 @@ const fetchProductData = async () => {
 
 const handleUploadSuccess = (res) => {
   if (res.url) {
-    let finalUrl = resolveUrl(res.url)
+    const finalUrl = resolveBackendAssetUrl(res.url)
     publishForm.image = finalUrl
     ElMessage.success('图片上传成功')
   }

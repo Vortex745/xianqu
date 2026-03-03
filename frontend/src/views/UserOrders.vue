@@ -3,9 +3,9 @@
 
     <div class="nav-header">
       <div class="container nav-content">
-        <div class="back-btn" @click="$router.push('/profile')">
-          <IconifySymbol icon="lucide:arrow-left" size="16" color="#667183" />
-          <span>返回个人中心</span>
+        <div class="back-btn" @click="$router.push('/')">
+          <IconifySymbol icon="lucide:house" size="16" color="#667183" />
+          <span>回首页</span>
         </div>
         <div class="page-title">
           <IconifySymbol icon="lucide:clipboard-list" size="18" color="#202633" />
