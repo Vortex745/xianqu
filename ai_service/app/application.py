@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 def create_app() -> FastAPI:
     settings = Settings.from_env()
     logger.info("CORS allowed origins: %s", settings.allowed_origins)
+    logger.info("Agent service mode: %s", settings.agent_service_mode)
 
     # Initialize model manager for dynamic model switching
     model_manager = ModelManager(

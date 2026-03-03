@@ -1,0 +1,107 @@
+{
+  "generated_at": "2026-03-03T07:46:07.955551+00:00",
+  "backend_api_base_url": "https://api.315279.xyz/api",
+  "faq_entries": [
+    {
+      "title": "📂 项目结构",
+      "content": "xianqu/ ├── frontend/ # 前端工程 │ ├── src/ │ │ ├── views/ # 页面组件（15 个页面）"
+    },
+    {
+      "title": "🚀 快速开始",
+      "content": "cd frontend npm install npm run dev 脚本会自动完成以下事情："
+    },
+    {
+      "title": "🔧 构建部署",
+      "content": "cd frontend npm run build cd backend go build -o xianqu-server ."
+    },
+    {
+      "title": "👤 管理后台",
+      "content": "首次使用需初始化管理员账号： GET http://localhost:8081/api/admin/init"
+    },
+    {
+      "title": "📡 API 接口概览",
+      "content": "所有接口以 /api 为前缀，需要登录的接口通过 Authorization: Bearer <token> 传递 JWT。"
+    },
+    {
+      "title": "📝 数据模型",
+      "content": "数据库文件默认保存在 backend/xianqu.db，应用启动时会自动建表和迁移。"
+    },
+    {
+      "title": "📜 License",
+      "content": "本项目仅供学习交流使用。"
+    }
+  ],
+  "categories": [],
+  "products": [
+    {
+      "id": 12,
+      "name": "123",
+      "category": "服饰",
+      "price": 111,
+      "description": "321"
+    },
+    {
+      "id": 11,
+      "name": "星夜",
+      "category": "兼职",
+      "price": 321,
+      "description": "123"
+    },
+    {
+      "id": 10,
+      "name": "机械工业出版社 - 编译原理 第2版",
+      "category": "图书",
+      "price": 35,
+      "description": "龙书，经典教材。几乎没动过（太难了）。买书送笔记。"
+    },
+    {
+      "id": 7,
+      "name": "大疆 DJI Mini 4 Pro 无人机",
+      "category": "数码",
+      "price": 4200,
+      "description": "畅飞套装，三枚电池。循环次数极少，功能完全正常，未炸机。含遥控器。"
+    },
+    {
+      "id": 9,
+      "name": "哈利波特 全集 精装套装",
+      "category": "图书",
+      "price": 120,
+      "description": "人文版，七册齐全。买来收藏的，品相近乎全新。爱书之人请进。"
+    },
+    {
+      "id": 4,
+      "name": "2023款 MacBook Air M2",
+      "category": "数码",
+      "price": 5200,
+      "description": "深空灰色，8+256G版本。仅作为会议办公使用，几乎全新。欢迎同城自提。"
+    },
+    {
+      "id": 5,
+      "name": "索尼 PS5 光驱版 游戏机",
+      "category": "玩具",
+      "price": 2800,
+      "description": "国行版，购买半年。送底座和两个原装手柄（白色/黑色）。已破解可装双系统。"
+    },
+    {
+      "id": 6,
+      "name": "始祖鸟(Arc'teryx) 硬壳冲锋衣",
+      "category": "服饰",
+      "price": 4500,
+      "description": "Alpha SV 系列，买大了。全新仅试穿，吊牌齐全。黑色 M码。保真。"
+    },
+    {
+      "id": 8,
+      "name": "任天堂 Switch OLED 白色版",
+      "category": "玩具",
+      "price": 1600,
+      "description": "全套原装配件，日版单机。屏幕无黄，按键清脆。附送一个便携收纳包。"
+    },
+    {
+      "id": 3,
+      "name": "iPhone 15 Pro Max 256G",
+      "category": "数码",
+      "price": 6500,
+      "description": "自用闲置，成色极佳，无划痕。电池健康98%。配件齐全，送保护壳。"
+    }
+  ]
+}

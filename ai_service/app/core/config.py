@@ -29,6 +29,13 @@ def _parse_allowed_origins(raw: str) -> list[str]:
     return origins
 
 
+def _parse_service_mode(raw: str, default: str = "guide") -> str:
+    value = str(raw or default).strip().lower()
+    if value in {"support", "conversion", "guide"}:
+        return value
+    return default
+
+
 @dataclass(frozen=True)
 class Settings:
     deepseek_api_key: str
@@ -39,6 +46,9 @@ class Settings:
     backend_api_base_url: str
     backend_timeout: float
     allowed_origins: list[str]
+    agent_service_mode: str
+    agent_brand_tone: str
+    agent_telemetry_dir: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -54,6 +64,12 @@ class Settings:
         allowed_origins = _parse_allowed_origins(
             os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
         )
+        agent_service_mode = _parse_service_mode(os.getenv("AGENT_SERVICE_MODE", "guide"))
+        agent_brand_tone = os.getenv(
+            "AGENT_BRAND_TONE",
+            "像闲趣里靠谱的熟人摊主。先说结论，再给动作。短句，别空话。",
+        ).strip()
+        agent_telemetry_dir = os.getenv("AGENT_TELEMETRY_DIR", str((_AI_SERVICE_DIR / "logs" / "agent").resolve())).strip()
         return cls(
             deepseek_api_key=deepseek_api_key,
             deepseek_base_url=deepseek_base_url,
@@ -63,4 +79,7 @@ class Settings:
             backend_api_base_url=backend_api_base_url,
             backend_timeout=backend_timeout,
             allowed_origins=allowed_origins,
+            agent_service_mode=agent_service_mode,
+            agent_brand_tone=agent_brand_tone,
+            agent_telemetry_dir=agent_telemetry_dir,
         )

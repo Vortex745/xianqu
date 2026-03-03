@@ -1,14 +1,10 @@
-"""LangChain Agent Service — orchestrates tool calling, backend execution, and response generation.
+"""LangChain Agent Service — orchestrates tool calling, backend execution, and response generation."""
 
-Improvements:
-  1. Complete Tool Calling integration (supports stateful multi-step intents like "add item to cart").
-  2. Multi-turn reasoning loops enabled directly by DeepSeek function calling.
-  3. Context-aware memory preservation via InMemoryChatMessageHistory.
-"""
-
+import html
 import json
 import logging
 import re
+from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from threading import Lock
 from typing import Any
@@ -23,6 +19,7 @@ from ..langchain_module.text_utils import as_text, normalize_plain_text
 from ..model_manager import ModelManager
 from .backend_tools import BackendToolExecutor, ACTION_SPECS
 from .intent_classifier import IntentClassifier
+from .telemetry import AgentTelemetryLogger
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +51,30 @@ TRAILING_NOISE_RE = re.compile(r"(?:加入购物车|加购物车|购物车|购�
 DISPLAY_NAME_CLEAN_RE = re.compile(r"\s+")
 QUANTITY_WORD_MAP = {"一": 1, "两": 2, "俩": 2, "二": 2, "三": 3, "四": 4, "五": 5}
 PRODUCT_NAME_STOPWORDS = {"到", "里", "购物车", "购物袋", "车里", "它", "这个", "那个", "一下"}
+SERVICE_MODE_INSTRUCTIONS = {
+    "support": "当前目标偏客服。优先解决问题、解释规则、给用户下一步动作。",
+    "conversion": "当前目标偏转化。优先推荐合适商品、减少犹豫、推动完成收藏或加购。",
+    "guide": "当前目标偏引导。优先把用户带到正确页面或正确操作路径。",
+}
+SERVICE_MODE_GUIDANCE = {
+    "support": "你也可以直接问退款、发货、账号、收藏这些问题。",
+    "conversion": "你也可以直接让我推荐商品、找同类宝贝、筛分类。",
+    "guide": "你也可以直接让我查订单、看购物车、改昵称、找商品。",
+}
+NEGATIVE_SENTIMENT_RE = re.compile(r"(气死|生气|差劲|垃圾|投诉|崩溃|不行|失败|怎么还|一直|卡住|麻烦死|糟糕)")
+URGENT_SENTIMENT_RE = re.compile(r"(马上|立刻|尽快|着急|急用|赶紧|快点|现在就)")
+POSITIVE_SENTIMENT_RE = re.compile(r"(谢谢|辛苦|太好了|真棒|喜欢|不错|赞)")
+CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+UNSAFE_INPUT_RE = re.compile(
+    r"(<\s*script\b|</script>|javascript:|ignore\s+previous|system\s+prompt|developer\s+message|union\s+select|drop\s+table|or\s+1=1|--\s*$)",
+    re.IGNORECASE,
+)
+
+
+@dataclass
+class AgentReplyPayload:
+    answer: str
+    meta: dict[str, Any] = field(default_factory=dict)
 
 class LangChainAgentService:
     def __init__(self, settings: Settings, history_store: ChatHistoryStore | None = None, model_manager: ModelManager | None = None) -> None:
@@ -65,13 +86,13 @@ class LangChainAgentService:
         self._model_manager = model_manager
         self._executor = BackendToolExecutor(settings)
         self._intent_classifier = IntentClassifier()
+        self._telemetry = AgentTelemetryLogger(settings.agent_telemetry_dir)
         self._clarification_state: dict[str, dict[str, Any]] = {}
         self._state_lock = Lock()
         
         if self._is_mock:
             self._llm = None
             self._tools = []
-            self._system_prompt = None
             return
 
         # Instantiate LLM and Executor
@@ -107,18 +128,6 @@ class LangChainAgentService:
                 }
             })
             
-        self._system_prompt = SystemMessage(content=(
-            "你是闲趣二手交易平台的 AI 助手「闲趣小助手」。\n"
-            "你能自动调用后端接口帮用户查商品、管订单、管购物车、管收藏等。\n\n"
-            "## 核心工作流\n"
-            "1. 当用户发出复合指令（如“把华为手机加入购物车”），你需要自动进行多步操作：先调用 `products_list` 拿到真实的商品ID，然后再根据ID调用 `cart_add` 加入购物车。\n"
-            "2. 操作完成后，用自然、友好的中文告诉用户结果。如：“已为您把商品 [ID:x] 加入了购物车！”\n"
-            "3. 回复必须是纯文本，不使用Markdown和代码块。\n"
-            "4. 禁止执行“支付 (orders_pay / orders_confirm_pay)”相关的越权敏感操作，遇到这类请求请礼貌引导用户自行在页面点击支付。\n"
-            "5. 所有列表数据，提取最重要的信息（商品名、价格、订单号），最多展示 3~5 条。\n"
-            "6. 根据收到的返回 JSON，你需要将订单的状态码转成友好的文字告知：1=待支付，2=待发货，3=运输中，4=已完成，5=已取消/已退单\n"
-        ))
-
     # -- public API ---------------------------------------------------------
 
     def chat(
@@ -126,33 +135,76 @@ class LangChainAgentService:
         message: str,
         session_id: str | None = None,
         auth_token: str | None = None,
-    ) -> tuple[str, str]:
-        user_text = message.strip()
+        service_mode: str | None = None,
+    ) -> tuple[str, str, dict[str, Any]]:
+        user_text = self._sanitize_user_text(message)
         if not user_text:
             raise ValueError("message is empty")
 
         use_session_id = session_id or uuid4().hex
+        active_service_mode = self._resolve_service_mode(service_mode)
+        sentiment = self._detect_sentiment(user_text)
+        base_meta = self._build_reply_meta(
+            service_mode=active_service_mode,
+            sentiment=sentiment,
+            source="agent",
+            quick_replies=self._default_quick_replies(active_service_mode),
+            guidance=SERVICE_MODE_GUIDANCE.get(active_service_mode, SERVICE_MODE_GUIDANCE["guide"]),
+        )
+
+        if self._is_unsafe_input(user_text):
+            reply = self._compose_reply(
+                "我先拦了一下这条消息。请直接说商品、订单、购物车、收藏或昵称需求，不要带脚本或系统指令。",
+                meta={
+                    **base_meta,
+                    "source": "security",
+                    "fallback": True,
+                },
+            )
+            self._log_turn(use_session_id, user_text, reply)
+            return use_session_id, reply.answer, reply.meta
+
         history = self._history_store.get_history(use_session_id)
         history.add_user_message(user_text)
 
-        direct_answer = self._try_handle_direct_intent(use_session_id, user_text, auth_token)
+        direct_answer = self._try_handle_direct_intent(
+            use_session_id,
+            user_text,
+            auth_token,
+            active_service_mode,
+            sentiment,
+        )
         if direct_answer is not None:
-            final_answer = normalize_plain_text(direct_answer)
+            final_answer = normalize_plain_text(direct_answer.answer)
             history.add_message(AIMessage(content=final_answer))
-            return use_session_id, final_answer
+            reply = AgentReplyPayload(answer=final_answer, meta={**base_meta, **direct_answer.meta})
+            self._log_turn(use_session_id, user_text, reply)
+            return use_session_id, reply.answer, reply.meta
 
         shortcut_answer = self._try_handle_add_to_cart_shortcut(user_text, auth_token)
         if shortcut_answer is not None:
             self._clear_clarification_state(use_session_id)
             final_answer = normalize_plain_text(shortcut_answer)
             history.add_message(AIMessage(content=final_answer))
-            return use_session_id, final_answer
+            reply = self._compose_reply(
+                final_answer,
+                meta={
+                    **base_meta,
+                    "source": "shortcut",
+                    "intent": "加入购物车",
+                    "confidence": 0.88,
+                },
+            )
+            self._log_turn(use_session_id, user_text, reply)
+            return use_session_id, reply.answer, reply.meta
 
         if self._is_mock and not self._model_manager:
             # Simple mock logic for Agent
-            final_answer = f"我是闲趣小助手（演示模式）。由于 API Key 未正确设置，我目前无法为您查实真实数据或执行指令。您的请求是：{user_text}。"
+            final_answer = f"我是闲趣小助手（演示模式）。由于 API Key 未正确设置，我目前还不能真查数据。您刚才说的是：{user_text}。"
             history.add_message(AIMessage(content=final_answer))
-            return use_session_id, final_answer
+            reply = self._compose_reply(final_answer, meta={**base_meta, "source": "mock", "fallback": True})
+            self._log_turn(use_session_id, user_text, reply)
+            return use_session_id, reply.answer, reply.meta
 
         # Try dynamic model if model_manager is available
         active_llm = self._llm
@@ -164,10 +216,12 @@ class LangChainAgentService:
         if active_llm is None or self._executor is None:
              final_answer = "AI 代理服务未初始化，请检查配置。"
              history.add_message(AIMessage(content=final_answer))
-             return use_session_id, final_answer
+             reply = self._compose_reply(final_answer, meta={**base_meta, "source": "system", "fallback": True})
+             self._log_turn(use_session_id, user_text, reply)
+             return use_session_id, reply.answer, reply.meta
         
         # Feed the system prompt + whole history to LLM
-        messages = [self._system_prompt] + history.messages # type: ignore
+        messages = [self._build_system_prompt(active_service_mode, sentiment)] + history.messages # type: ignore
         llm_with_tools = active_llm.bind_tools(self._tools)
         
         # Max steps to prevent infinite tool loops
@@ -204,13 +258,22 @@ class LangChainAgentService:
                 history.add_message(tm)
                 
         if not final_answer:
-            final_answer = "我执行的操作有些复杂，似乎遇到了一点网络波动，请稍后再试一次。"
+            final_answer = "这轮我没顺利拿到结果。您可以换个更短的说法，或者直接点下面的常用操作。"
             persist_final_answer = True
             
         final_answer = normalize_plain_text(final_answer)
         if persist_final_answer:
             history.add_message(AIMessage(content=final_answer))
-        return use_session_id, final_answer
+        reply = self._compose_reply(
+            final_answer,
+            meta={
+                **base_meta,
+                "source": "llm",
+                "fallback": persist_final_answer or self._looks_like_fallback_answer(final_answer),
+            },
+        )
+        self._log_turn(use_session_id, user_text, reply)
+        return use_session_id, reply.answer, reply.meta
 
     def clear_session(self, session_id: str) -> bool:
         self._clear_clarification_state(session_id)
@@ -240,7 +303,187 @@ class LangChainAgentService:
 
     # -- private helpers ---------------------------------------------------
 
-    def _try_handle_direct_intent(self, session_id: str, user_text: str, auth_token: str | None) -> str | None:
+    def _resolve_service_mode(self, raw_mode: str | None) -> str:
+        value = str(raw_mode or self._settings.agent_service_mode or "guide").strip().lower()
+        if value in SERVICE_MODE_INSTRUCTIONS:
+            return value
+        return "guide"
+
+    def _sanitize_user_text(self, raw_text: str) -> str:
+        text = html.unescape(str(raw_text or ""))
+        text = CONTROL_CHAR_RE.sub(" ", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
+
+    def _is_unsafe_input(self, text: str) -> bool:
+        return bool(UNSAFE_INPUT_RE.search(text))
+
+    def _detect_sentiment(self, text: str) -> str:
+        if NEGATIVE_SENTIMENT_RE.search(text):
+            return "negative"
+        if URGENT_SENTIMENT_RE.search(text):
+            return "urgent"
+        if POSITIVE_SENTIMENT_RE.search(text):
+            return "positive"
+        return "neutral"
+
+    def _build_system_prompt(self, service_mode: str, sentiment: str) -> SystemMessage:
+        sentiment_hint = {
+            "negative": "用户情绪偏负面。先稳住情绪，再给动作。",
+            "urgent": "用户比较着急。先给结论和最快路径。",
+            "positive": "用户情绪不错。语气可以轻一点，但别啰嗦。",
+            "neutral": "保持自然、短句、直接。",
+        }.get(sentiment, "保持自然、短句、直接。")
+        mode_instruction = SERVICE_MODE_INSTRUCTIONS.get(service_mode, SERVICE_MODE_INSTRUCTIONS["guide"])
+        return SystemMessage(
+            content=(
+                "你是闲趣二手交易平台的 AI 助手「闲趣小助手」。\n"
+                f"品牌语调：{self._settings.agent_brand_tone}\n"
+                f"服务模式：{service_mode}。{mode_instruction}\n"
+                f"情绪提示：{sentiment_hint}\n\n"
+                "工作要求：\n"
+                "1. 你能调用后端接口帮用户查商品、管订单、管购物车、管收藏。\n"
+                "2. 当用户说复合指令时，先查真实数据，再执行动作。\n"
+                "3. 先说重点，再给动作建议。只输出纯文本，不要 Markdown、HTML、代码块。\n"
+                "4. 禁止执行支付相关越权动作，遇到支付请求只做页面引导。\n"
+                "5. 列表信息最多讲 3 到 5 条，挑最重要的商品名、价格、订单号。\n"
+                "6. 订单状态要翻译成人话：1=待支付，2=待发货，3=运输中，4=已完成，5=已取消/已退款。\n"
+            )
+        )
+
+    def _default_quick_replies(self, service_mode: str) -> list[dict[str, str]]:
+        by_mode = {
+            "support": [
+                {"label": "查买到订单", "message": "帮我查一下我买的订单"},
+                {"label": "看购物车", "message": "看看我的购物车"},
+                {"label": "看收藏", "message": "看看我的收藏"},
+                {"label": "发货问题", "message": "待发货订单是什么意思"},
+            ],
+            "conversion": [
+                {"label": "找数码商品", "message": "帮我搜一下数码商品"},
+                {"label": "找耳机", "message": "帮我搜一下耳机"},
+                {"label": "推荐好物", "message": "推荐几件现在值得买的商品"},
+                {"label": "加入购物车", "message": "把 iPhone 15 Pro Max 加入购物车"},
+            ],
+            "guide": [
+                {"label": "查买到订单", "message": "帮我查一下我买的订单"},
+                {"label": "看购物车", "message": "看看我的购物车"},
+                {"label": "找数码商品", "message": "帮我搜一下数码商品"},
+                {"label": "看收藏", "message": "看看我的收藏"},
+            ],
+        }
+        return by_mode.get(service_mode, by_mode["guide"])
+
+    def _clarification_quick_replies(self, kind: str, options: list[str] | tuple[str, ...]) -> list[dict[str, str]]:
+        if kind == "orders_scope":
+            return [
+                {"label": "买到的", "message": "帮我查一下我买的订单"},
+                {"label": "卖出的", "message": "帮我查一下我卖出的订单"},
+            ]
+        if kind == "profile_field":
+            return [
+                {"label": "改昵称", "message": "昵称改成闲趣新朋友"},
+                {"label": "改头像", "message": "我想改头像"},
+                {"label": "改手机号", "message": "我想改手机号"},
+            ]
+        if kind == "nickname_value":
+            return [
+                {"label": "小满旧物铺", "message": "昵称改成小满旧物铺"},
+                {"label": "周末换新", "message": "昵称改成周末换新"},
+            ]
+        if kind == "add_to_cart_subject":
+            return [
+                {"label": "搜耳机", "message": "帮我搜一下耳机"},
+                {"label": "搜数码", "message": "帮我搜一下数码商品"},
+            ]
+        quick_replies: list[dict[str, str]] = []
+        for option in options:
+            label = str(option).strip()
+            if label:
+                quick_replies.append({"label": label, "message": label})
+        return quick_replies
+
+    def _build_reply_meta(
+        self,
+        *,
+        service_mode: str,
+        sentiment: str,
+        source: str,
+        quick_replies: list[dict[str, str]] | None = None,
+        guidance: str | None = None,
+        **extra: Any,
+    ) -> dict[str, Any]:
+        meta: dict[str, Any] = {
+            "service_mode": service_mode,
+            "sentiment": sentiment,
+            "source": source,
+            "quick_replies": quick_replies or [],
+            "guidance": guidance,
+            "fallback": False,
+        }
+        meta.update({key: value for key, value in extra.items() if value is not None})
+        return meta
+
+    def _compose_reply(self, answer: str, meta: dict[str, Any]) -> AgentReplyPayload:
+        polished = self._apply_brand_tone(normalize_plain_text(answer), str(meta.get("sentiment") or "neutral"))
+        meta["quick_replies"] = self._normalize_quick_replies(meta.get("quick_replies"))
+        return AgentReplyPayload(answer=polished, meta=meta)
+
+    def _normalize_quick_replies(self, raw_items: Any) -> list[dict[str, str]]:
+        replies: list[dict[str, str]] = []
+        if not isinstance(raw_items, list):
+            return replies
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get("label") or "").strip()
+            message = str(item.get("message") or "").strip()
+            if label and message:
+                replies.append({"label": label[:32], "message": message[:200]})
+        return replies[:6]
+
+    def _apply_brand_tone(self, answer: str, sentiment: str) -> str:
+        text = normalize_plain_text(answer)
+        if not text:
+            return "我这边刚卡了一下，您再发一次。"
+        if sentiment == "negative" and not text.startswith(("别急", "先别急", "抱歉")):
+            return f"先别急，我帮您对一下。{text}"
+        if sentiment == "urgent" and not text.startswith(("收到", "我先", "先")):
+            return f"收到，我先给您快查。{text}"
+        if sentiment == "positive" and not text.startswith(("好嘞", "收到")):
+            return f"好嘞，{text}"
+        return text
+
+    def _looks_like_fallback_answer(self, answer: str) -> bool:
+        return any(token in answer for token in ("稍后再试", "没顺利拿到结果", "没收到回复", "暂时"))
+
+    def _log_turn(self, session_id: str, user_text: str, reply: AgentReplyPayload) -> None:
+        try:
+            self._telemetry.log_turn(
+                {
+                    "session_id": session_id,
+                    "service_mode": reply.meta.get("service_mode"),
+                    "source": reply.meta.get("source"),
+                    "intent": reply.meta.get("intent"),
+                    "confidence": reply.meta.get("confidence"),
+                    "sentiment": reply.meta.get("sentiment"),
+                    "fallback": bool(reply.meta.get("fallback")),
+                    "clarification_kind": reply.meta.get("clarification_kind"),
+                    "user_text": user_text,
+                    "answer": reply.answer,
+                }
+            )
+        except Exception as exc:
+            logger.warning("Agent telemetry write failed: %s", exc)
+
+    def _try_handle_direct_intent(
+        self,
+        session_id: str,
+        user_text: str,
+        auth_token: str | None,
+        service_mode: str,
+        sentiment: str,
+    ) -> AgentReplyPayload | None:
         pending = self._get_clarification_state(session_id)
         decision = self._intent_classifier.classify(user_text, pending=pending)
 
@@ -254,30 +497,67 @@ class LangChainAgentService:
                     "context": dict(decision.clarification.context),
                 },
             )
-            return decision.clarification.prompt
+            return self._compose_reply(
+                decision.clarification.prompt,
+                meta=self._build_reply_meta(
+                    service_mode=service_mode,
+                    sentiment=sentiment,
+                    source="classifier",
+                    intent=decision.intent,
+                    confidence=round(decision.confidence, 4),
+                    clarification_kind=decision.clarification.kind,
+                    fallback=True,
+                    quick_replies=self._clarification_quick_replies(
+                        decision.clarification.kind,
+                        decision.clarification.options,
+                    ),
+                    guidance="点一个也行，或者直接回一句更具体的话。",
+                ),
+            )
 
         self._clear_clarification_state(session_id)
 
         if decision.message and decision.confidence >= 0.8:
-            return decision.message
+            return self._compose_reply(
+                decision.message,
+                meta=self._build_reply_meta(
+                    service_mode=service_mode,
+                    sentiment=sentiment,
+                    source="classifier",
+                    intent=decision.intent,
+                    confidence=round(decision.confidence, 4),
+                    quick_replies=self._default_quick_replies(service_mode),
+                ),
+            )
 
         if decision.confidence < 0.8 or decision.action == "chat_only":
             return None
 
         if decision.action == "cart.add":
-            return self._handle_add_to_cart_intent(decision.params, auth_token)
-        if decision.action == "orders.list":
-            return self._handle_orders_intent(decision.params, auth_token)
-        if decision.action == "cart.list":
-            return self._handle_cart_list_intent(auth_token)
-        if decision.action == "user.data":
-            return self._handle_user_data_intent(decision.params, auth_token)
-        if decision.action == "products.list":
-            return self._handle_product_search_intent(decision.params, auth_token)
-        if decision.action == "user.profile.update":
-            return self._handle_profile_update_intent(decision.params, auth_token)
-
-        return None
+            answer = self._handle_add_to_cart_intent(decision.params, auth_token)
+        elif decision.action == "orders.list":
+            answer = self._handle_orders_intent(decision.params, auth_token)
+        elif decision.action == "cart.list":
+            answer = self._handle_cart_list_intent(auth_token)
+        elif decision.action == "user.data":
+            answer = self._handle_user_data_intent(decision.params, auth_token)
+        elif decision.action == "products.list":
+            answer = self._handle_product_search_intent(decision.params, auth_token)
+        elif decision.action == "user.profile.update":
+            answer = self._handle_profile_update_intent(decision.params, auth_token)
+        else:
+            return None
+        return self._compose_reply(
+            answer,
+            meta=self._build_reply_meta(
+                service_mode=service_mode,
+                sentiment=sentiment,
+                source="classifier",
+                intent=decision.intent,
+                confidence=round(decision.confidence, 4),
+                quick_replies=self._default_quick_replies(service_mode),
+            ),
+        )
 
     def _get_clarification_state(self, session_id: str) -> dict[str, Any] | None:
         with self._state_lock:

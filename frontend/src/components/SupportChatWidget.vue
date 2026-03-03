@@ -33,6 +33,19 @@
                     AI Agent
                   </button>
                 </div>
+                <div v-if="activeMode === MODE_AGENT" class="agent-service-strip" role="tablist" aria-label="Agent 服务模式">
+                  <button
+                    v-for="item in AGENT_SERVICE_MODES"
+                    :key="item.value"
+                    type="button"
+                    class="agent-service-pill"
+                    :class="{ active: agentServiceMode === item.value }"
+                    :disabled="isSending"
+                    @click="setAgentServiceMode(item.value)"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
               </div>
             </div>
             <div class="head-right">
@@ -55,6 +68,21 @@
                   <div class="bubble-stack">
                     <div class="bubble-text" v-if="msg.text" :class="{ 'bubble-error': msg.state === 'offline' && msg.role === 'assistant' }">
                       {{ msg.text }}
+                    </div>
+                    <div
+                      v-if="msg.role === 'assistant' && index === activeMessages.length - 1 && getMessageQuickReplies(msg).length"
+                      class="quick-reply-row"
+                    >
+                      <button
+                        v-for="reply in getMessageQuickReplies(msg)"
+                        :key="`${msg.id}-${reply.label}`"
+                        class="quick-reply-chip"
+                        type="button"
+                        :disabled="isSending"
+                        @click="handleQuickReply(reply.message)"
+                      >
+                        {{ reply.label }}
+                      </button>
                     </div>
                     <div class="bubble-meta">
                       <span v-if="showTimestampSetting" class="time-text">{{ formatTimeHHMM(msg.createdAt) }}</span>
@@ -90,6 +118,22 @@
           </div>
 
           <footer class="chat-input-zone">
+            <div v-if="activeMode === MODE_AGENT" class="agent-mode-note">
+              <span class="agent-mode-badge">{{ activeAgentModeLabel }}</span>
+              <p>{{ activeAgentGuidance }}</p>
+            </div>
+            <div v-if="activeMode === MODE_AGENT && composerQuickReplies.length" class="composer-quick-strip">
+              <button
+                v-for="reply in composerQuickReplies"
+                :key="`composer-${reply.label}`"
+                class="composer-quick-chip"
+                type="button"
+                :disabled="isSending"
+                @click="handleQuickReply(reply.message)"
+              >
+                {{ reply.label }}
+              </button>
+            </div>
             <div class="input-actions-row">
               <div class="input-container">
                 <textarea
@@ -161,6 +205,42 @@ const router = useRouter()
 const MODE_SUPPORT = 'support'
 const MODE_AGENT = 'agent'
 const MODE_LIST = [MODE_SUPPORT, MODE_AGENT]
+const AGENT_SERVICE_MODES = [
+  {
+    value: 'guide',
+    label: '带路',
+    guidance: '我先带你走到对的入口。',
+    quickReplies: [
+      { label: '查买到订单', message: '帮我查一下我买的订单' },
+      { label: '看购物车', message: '看看我的购物车' },
+      { label: '找数码商品', message: '帮我搜一下数码商品' },
+      { label: '看收藏', message: '看看我的收藏' }
+    ]
+  },
+  {
+    value: 'support',
+    label: '客服',
+    guidance: '我先把问题说清，再给动作。',
+    quickReplies: [
+      { label: '发货问题', message: '待发货订单是什么意思' },
+      { label: '退款规则', message: '退款一般怎么处理' },
+      { label: '查卖出订单', message: '帮我查一下我卖出的订单' },
+      { label: '改昵称', message: '我想改昵称' }
+    ]
+  },
+  {
+    value: 'conversion',
+    label: '推荐',
+    guidance: '我先给你省时间的选择。',
+    quickReplies: [
+      { label: '找耳机', message: '帮我搜一下耳机' },
+      { label: '找游戏机', message: '帮我搜一下游戏机' },
+      { label: '推荐好物', message: '推荐几件现在值得买的商品' },
+      { label: '加购手机', message: '把 iPhone 15 Pro Max 加入购物车' }
+    ]
+  }
+]
+const AGENT_SERVICE_MODE_MAP = Object.fromEntries(AGENT_SERVICE_MODES.map((item) => [item.value, item]))
 
 const MODE_META = {
   [MODE_SUPPORT]: {
@@ -199,6 +279,7 @@ const showTimestampSetting = ref(true)
 const isAtBottom = ref(true)
 const hasNewMessage = ref(false)
 const activeMode = ref(MODE_SUPPORT)
+const agentServiceMode = ref('guide')
 const sessionByMode = ref({
   [MODE_SUPPORT]: '',
   [MODE_AGENT]: ''
@@ -230,6 +311,25 @@ const activeMessages = computed(() => ensureModeMessages(activeMode.value))
 const assistantTitle = computed(() => MODE_META[activeMode.value]?.title || MODE_META[MODE_SUPPORT].title)
 const typingLabel = computed(() => MODE_META[activeMode.value]?.typingLabel || MODE_META[MODE_SUPPORT].typingLabel)
 const inputPlaceholder = computed(() => MODE_META[activeMode.value]?.inputPlaceholder || MODE_META[MODE_SUPPORT].inputPlaceholder)
+const activeAgentModeMeta = computed(() => AGENT_SERVICE_MODE_MAP[agentServiceMode.value] || AGENT_SERVICE_MODE_MAP.guide)
+const activeAgentModeLabel = computed(() => `现在偏${activeAgentModeMeta.value.label}`)
+const latestAssistantMessage = computed(() => {
+  const list = activeMessages.value
+  for (let index = list.length - 1; index >= 0; index -= 1) {
+    if (list[index]?.role === 'assistant') return list[index]
+  }
+  return null
+})
+const activeAgentGuidance = computed(() => {
+  const guidance = latestAssistantMessage.value?.meta?.guidance || ''
+  return guidance || activeAgentModeMeta.value.guidance
+})
+const composerQuickReplies = computed(() => {
+  if (activeMode.value !== MODE_AGENT) return []
+  const latestReplies = getMessageQuickReplies(latestAssistantMessage.value)
+  if (latestReplies.length) return latestReplies
+  return activeAgentModeMeta.value.quickReplies || []
+})
 
 const assistantHeaderAvatar = computed(() => {
   if (assistantState.value === 'loading') return aiAvatars.loading128
@@ -286,10 +386,30 @@ const getMessageStorageKey = (mode) => {
   return user && user.id ? `xianqu_ai_messages_${user.id}_${mode}` : `xianqu_ai_messages_guest_${mode}`
 }
 
+const getAgentModeStorageKey = () => {
+  const user = parseStoredUser()
+  return user && user.id ? `xianqu_ai_agent_service_mode_${user.id}` : 'xianqu_ai_agent_service_mode_guest'
+}
+
 const SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000
 
 const syncUserFromStorage = () => {
   currentUser.value = parseStoredUser()
+}
+
+const loadAgentServiceMode = () => {
+  try {
+    const saved = String(localStorage.getItem(getAgentModeStorageKey()) || '').trim()
+    agentServiceMode.value = AGENT_SERVICE_MODE_MAP[saved] ? saved : 'guide'
+  } catch (error) {
+    agentServiceMode.value = 'guide'
+  }
+}
+
+const persistAgentServiceMode = () => {
+  try {
+    localStorage.setItem(getAgentModeStorageKey(), agentServiceMode.value)
+  } catch (error) {}
 }
 
 const goToLogin = () => {
@@ -339,13 +459,41 @@ const forcePlainText = (rawText = '') => {
     .trim()
 }
 
+const normalizeQuickReplies = (rawItems) => {
+  if (!Array.isArray(rawItems)) return []
+  return rawItems
+    .map((item) => ({
+      label: String(item?.label || '').trim(),
+      message: String(item?.message || '').trim()
+    }))
+    .filter((item) => item.label && item.message)
+    .slice(0, 6)
+}
+
+const normalizeResponseMeta = (rawMeta = null) => {
+  if (!rawMeta || typeof rawMeta !== 'object') return null
+  const rawConfidence = rawMeta.confidence
+  return {
+    serviceMode: String(rawMeta.service_mode || rawMeta.serviceMode || '').trim(),
+    source: String(rawMeta.source || '').trim(),
+    intent: String(rawMeta.intent || '').trim(),
+    confidence: rawConfidence === null || rawConfidence === undefined || rawConfidence === '' ? null : (Number.isFinite(Number(rawConfidence)) ? Number(rawConfidence) : null),
+    sentiment: String(rawMeta.sentiment || '').trim(),
+    fallback: Boolean(rawMeta.fallback),
+    clarificationKind: String(rawMeta.clarification_kind || rawMeta.clarificationKind || '').trim(),
+    guidance: forcePlainText(rawMeta.guidance || ''),
+    quickReplies: normalizeQuickReplies(rawMeta.quick_replies || rawMeta.quickReplies)
+  }
+}
+
 const normalizeMessage = (item, index = 0) => ({
   id: item.id || `${Date.now()}-${index}`,
   role: item.role === 'user' ? 'user' : 'assistant',
   text: forcePlainText(item.text || ''),
   state: item.state || 'normal',
   status: item.status || (item.role === 'user' ? 'replied' : undefined),
-  createdAt: Number(item.createdAt) || (Date.now() + index)
+  createdAt: Number(item.createdAt) || (Date.now() + index),
+  meta: normalizeResponseMeta(item.meta)
 })
 
 const pushMessage = (role, text, options = {}) => {
@@ -357,12 +505,34 @@ const pushMessage = (role, text, options = {}) => {
       role,
       text: text || '我刚才没收到内容，请重试。',
       state: options.state || 'normal',
-      status: options.status
+      status: options.status,
+      meta: options.meta || null
     },
     targetMessages.length
   )
   targetMessages.push(message)
   return message.id
+}
+
+const getMessageQuickReplies = (msg) => {
+  if (!Array.isArray(msg?.meta?.quickReplies)) return []
+  if (msg?.meta?.clarificationKind || msg?.meta?.fallback) return msg.meta.quickReplies
+  return []
+}
+
+const handleQuickReply = async (message) => {
+  if (isSending.value) return
+  draft.value = String(message || '').trim()
+  if (!draft.value) return
+  await nextTick()
+  await sendMessage()
+}
+
+const setAgentServiceMode = (mode) => {
+  if (isSending.value) return
+  if (!AGENT_SERVICE_MODE_MAP[mode]) return
+  agentServiceMode.value = mode
+  persistAgentServiceMode()
 }
 
 const updateMessageStatus = (messageId, status, mode = activeMode.value) => {
@@ -613,6 +783,7 @@ const sendMessage = async () => {
     if (mode === MODE_AGENT) {
       const token = normalizeToken(localStorage.getItem('token'))
       if (token) payload.auth_token = token
+      payload.service_mode = agentServiceMode.value || 'guide'
     }
 
     const response = await fetch(`${apiBase}${MODE_META[mode].endpoint}`, {
@@ -636,7 +807,7 @@ const sendMessage = async () => {
     }
     updateMessageStatus(pendingId, 'replied', mode)
     const answerText = data?.answer || '我这边没拿到回复。'
-    pushMessage('assistant', answerText, { state: 'normal', mode })
+    pushMessage('assistant', answerText, { state: 'normal', mode, meta: normalizeResponseMeta(data?.meta) })
     notifyAgentResult(answerText)
     assistantState.value = 'normal'
   } catch (error) {
@@ -678,6 +849,7 @@ const retryMessage = async (failedMsg) => {
 const onStorageChange = () => {
   syncUserFromStorage()
   checkAndEnforcePolicy()
+  loadAgentServiceMode()
   loadMessagesForMode(activeMode.value)
 }
 
@@ -714,6 +886,7 @@ watch(activeMode, async () => {
 onMounted(() => {
   syncUserFromStorage()
   checkAndEnforcePolicy()
+  loadAgentServiceMode()
   MODE_LIST.forEach((mode) => {
     sessionByMode.value[mode] = localStorage.getItem(getSessionStorageKey(mode)) || ''
     loadMessagesForMode(mode)
@@ -867,6 +1040,42 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
+.agent-service-strip {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-service-pill {
+  min-width: 54px;
+  border: 1px solid rgba(20, 23, 31, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--brand-muted);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 180ms cubic-bezier(0.25, 0.84, 0.28, 1), background-color 180ms cubic-bezier(0.25, 0.84, 0.28, 1), color 180ms cubic-bezier(0.25, 0.84, 0.28, 1), border-color 180ms cubic-bezier(0.25, 0.84, 0.28, 1);
+}
+
+.agent-service-pill.active {
+  background: rgba(255, 223, 93, 0.9);
+  color: var(--brand-dark);
+  border-color: rgba(255, 223, 93, 0.7);
+}
+
+.agent-service-pill:hover:enabled {
+  transform: translateY(-1px);
+  color: var(--brand-text);
+}
+
+.agent-service-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .icon-btn {
   width: 32px;
   height: 32px;
@@ -973,6 +1182,54 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
 }
 
+.quick-reply-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.quick-reply-chip,
+.composer-quick-chip {
+  border: 1px solid rgba(20, 23, 31, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--brand-text);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 180ms cubic-bezier(0.25, 0.84, 0.28, 1), border-color 180ms cubic-bezier(0.25, 0.84, 0.28, 1), background-color 180ms cubic-bezier(0.25, 0.84, 0.28, 1);
+}
+
+.quick-reply-chip {
+  padding: 5px 10px;
+}
+
+.composer-quick-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.composer-quick-chip {
+  padding: 6px 12px;
+  background: rgba(255, 248, 214, 0.94);
+  border-color: rgba(255, 223, 93, 0.5);
+}
+
+.quick-reply-chip:hover:enabled,
+.composer-quick-chip:hover:enabled {
+  transform: translateY(-1px);
+  border-color: rgba(255, 223, 93, 0.72);
+}
+
+.quick-reply-chip:disabled,
+.composer-quick-chip:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
 .from-user .bubble-meta {
   align-items: flex-end;
 }
@@ -1056,6 +1313,37 @@ onBeforeUnmount(() => {
   border-top: 1px solid rgba(255, 255, 255, 0.4);
   padding: 10px 12px 12px;
   background: rgba(255, 255, 255, 0.25);
+}
+
+.agent-mode-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: rgba(255, 248, 214, 0.82);
+  border: 1px solid rgba(255, 223, 93, 0.34);
+}
+
+.agent-mode-note p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(20, 23, 31, 0.75);
+}
+
+.agent-mode-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(20, 23, 31, 0.9);
+  color: #fff8d6;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .input-actions-row {

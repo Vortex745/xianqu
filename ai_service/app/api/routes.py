@@ -38,17 +38,18 @@ def create_api_router(
     @router.post("/agent/chat", response_model=ChatResponse)
     def agent_chat(payload: AgentChatRequest) -> ChatResponse:
         try:
-            session_id, answer = agent.chat(
+            session_id, answer, meta = agent.chat(
                 message=payload.message,
                 session_id=payload.session_id,
                 auth_token=payload.auth_token,
+                service_mode=payload.service_mode,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except Exception as exc:
             raise _map_service_exception("agent invoke failed", exc) from exc
 
-        return ChatResponse(session_id=session_id, answer=answer)
+        return ChatResponse(session_id=session_id, answer=answer, meta=meta)
 
     @router.delete("/session/{session_id}")
     def clear_session(session_id: str) -> dict[str, bool]:
