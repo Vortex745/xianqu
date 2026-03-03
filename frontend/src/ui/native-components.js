@@ -150,8 +150,10 @@ const ElImage = defineComponent({
   },
   setup(props, { slots, attrs }) {
     const failed = ref(false)
+    const hasPreview = computed(() => Array.isArray(props.previewSrcList) && props.previewSrcList.length > 0)
     const openPreview = () => {
-      const target = props.previewSrcList[0] || props.src
+      if (!hasPreview.value) return
+      const target = props.previewSrcList[0]
       if (!target) return
       window.open(target, '_blank')
     }
@@ -168,7 +170,7 @@ const ElImage = defineComponent({
               class: 'el-image__inner',
               src: props.src,
               style: { objectFit: props.fit },
-              onClick: openPreview,
+              onClick: hasPreview.value ? openPreview : undefined,
               onError: () => {
                 failed.value = true
               }

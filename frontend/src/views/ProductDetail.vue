@@ -18,16 +18,17 @@
         <div class="gallery-section">
           <div class="image-stage">
             <button class="stage-image-button" type="button" @click="openViewer(activeGalleryIndex)">
-              <el-image
+              <img
+                  v-if="!stageImageFailed"
                   :src="activeGalleryImage"
-                  fit="contain"
+                  :alt="product.name || '商品主图'"
                   class="main-img"
                   :class="{ 'is-sold': product.status !== 1 }"
-              >
-                <template #error>
-                  <div class="image-slot"><el-icon><Picture /></el-icon></div>
-                </template>
-              </el-image>
+                  @error="handleStageImageError"
+              />
+              <div v-else class="image-slot">
+                <el-icon><Picture /></el-icon>
+              </div>
             </button>
 
             <div v-if="product.status !== 1" class="status-stamp">
@@ -143,8 +144,12 @@
           @click.self="closeViewer"
       >
         <section class="viewer-shell" :style="viewerSheetStyle">
+          <div class="viewer-glow"></div>
           <div class="viewer-topbar">
-            <div class="viewer-index">{{ viewerIndexLabel }}</div>
+            <div class="viewer-meta">
+              <div class="viewer-index">{{ viewerIndexLabel }}</div>
+              <div class="viewer-caption">{{ product.name || '宝贝大图' }}</div>
+            </div>
             <div class="viewer-tools">
               <button class="viewer-tool" type="button" @click="zoomViewer(-0.25)">
                 <span class="viewer-tool-label">-</span>
@@ -171,12 +176,23 @@
             </button>
 
             <div class="viewer-image-wrap">
+              <div v-if="viewerImageLoading" class="viewer-loading">
+                <span class="viewer-loading-orb"></span>
+                <span>大图加载中</span>
+              </div>
+              <div v-else-if="viewerImageError" class="viewer-error">
+                <el-icon><Picture /></el-icon>
+                <span>这张图暂时没刷出来</span>
+              </div>
               <img
+                  v-show="!viewerImageLoading && !viewerImageError"
                   :src="viewerImage"
                   :alt="`${product.name || '商品'}大图 ${viewerIndex + 1}`"
                   class="viewer-image"
                   :style="viewerImageStyle"
                   draggable="false"
+                  @load="handleViewerImageLoad"
+                  @error="handleViewerImageError"
               />
             </div>
 
@@ -185,7 +201,7 @@
             </button>
           </div>
 
-          <div class="viewer-hint">双指缩放，左右滑动切图，下滑关闭</div>
+          <div class="viewer-hint">双指缩放 · 左右切图 · 下滑收起</div>
 
           <div class="viewer-filmstrip" v-if="galleryImages.length > 1">
             <button
@@ -224,6 +240,7 @@ const buyLoading = ref(false)
 const collectCount = ref(0)
 const user = JSON.parse(localStorage.getItem('user') || 'null')
 const activeGalleryIndex = ref(0)
+const stageImageFailed = ref(false)
 const viewerVisible = ref(false)
 const viewerIndex = ref(0)
 const viewerScale = ref(1)
@@ -231,6 +248,8 @@ const viewerOffsetX = ref(0)
 const viewerOffsetY = ref(0)
 const viewerSwipeOffsetX = ref(0)
 const viewerDismissOffsetY = ref(0)
+const viewerImageLoading = ref(false)
+const viewerImageError = ref(false)
 
 const defaultImg = 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png'
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
@@ -369,15 +388,37 @@ const resetViewerMotion = () => {
   viewerDismissOffsetY.value = 0
 }
 
+const primeViewerImage = () => {
+  viewerImageLoading.value = true
+  viewerImageError.value = false
+}
+
+const handleStageImageError = () => {
+  stageImageFailed.value = true
+}
+
+const handleViewerImageLoad = () => {
+  viewerImageLoading.value = false
+  viewerImageError.value = false
+}
+
+const handleViewerImageError = () => {
+  viewerImageLoading.value = false
+  viewerImageError.value = true
+}
+
 const selectGalleryImage = (index) => {
   activeGalleryIndex.value = clamp(index, 0, galleryImages.value.length - 1)
+  stageImageFailed.value = false
 }
 
 const setViewerIndex = (index) => {
   const nextIndex = clamp(index, 0, galleryImages.value.length - 1)
   viewerIndex.value = nextIndex
   activeGalleryIndex.value = nextIndex
+  stageImageFailed.value = false
   resetViewerMotion()
+  primeViewerImage()
 }
 
 const changeViewerImage = (delta) => {
@@ -563,6 +604,7 @@ const fetchDetail = async () => {
 
     product.value = data
     activeGalleryIndex.value = 0
+    stageImageFailed.value = false
     viewerIndex.value = 0
 
     // 读取真实收藏数
@@ -698,6 +740,7 @@ onMounted(() => {
 
 watch(galleryImages, (images) => {
   if (!images.length) return
+  stageImageFailed.value = false
   if (activeGalleryIndex.value > images.length - 1) {
     activeGalleryIndex.value = 0
   }
@@ -813,6 +856,7 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
       display: flex;
       align-items: center;
       justify-content: center;
+      border-radius: 28px;
     }
 
     .main-img {
@@ -822,6 +866,20 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
       cursor: zoom-in;
       &:hover { transform: scale(1.05); }
       &.is-sold { filter: grayscale(100%); opacity: 0.8; }
+    }
+
+    .image-slot {
+      width: min(76%, 420px);
+      aspect-ratio: 1 / 1;
+      border-radius: 28px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(245, 247, 250, 0.98));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 16px 40px rgba(22, 30, 43, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #b3bac7;
+      font-size: 46px;
     }
 
     .status-stamp {
@@ -1052,42 +1110,80 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  padding: 18px;
+  background:
+    radial-gradient(circle at top, rgba(255, 223, 93, 0.16), transparent 34%),
+    rgba(6, 8, 12, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   transition: background 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .viewer-shell {
   width: min(1180px, 100%);
-  height: min(92vh, 860px);
-  border-radius: 28px;
+  height: min(90vh, 860px);
+  border-radius: 34px;
   background:
-    radial-gradient(circle at top left, rgba(255, 223, 93, 0.16), transparent 26%),
-    rgba(16, 18, 24, 0.96);
+    linear-gradient(180deg, rgba(13, 17, 24, 0.98), rgba(6, 8, 12, 0.98)),
+    rgba(9, 12, 17, 0.98);
   border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+  box-shadow: 0 32px 90px rgba(0,0,0,0.42);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+
+.viewer-glow {
+  position: absolute;
+  inset: -12% auto auto -10%;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 223, 93, 0.22), transparent 68%);
+  pointer-events: none;
+  filter: blur(8px);
 }
 
 .viewer-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 18px;
+  gap: 18px;
+  padding: 18px 22px 14px;
   color: rgba(255,255,255,0.88);
+  position: relative;
+  z-index: 1;
+}
+
+.viewer-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.viewer-caption {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .viewer-index {
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 223, 93, 0.14);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.4px;
+  color: #ffdf5d;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .viewer-tools {
@@ -1099,9 +1195,9 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
 .viewer-tool {
   width: 40px;
   height: 40px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.08);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.06);
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -1110,13 +1206,14 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 
   &:hover {
-    transform: translateY(-1px);
-    background: rgba(255,255,255,0.14);
+    transform: translateY(-1px) scale(1.02);
+    background: rgba(255,255,255,0.12);
   }
 
   &.close {
-    background: rgba(255, 223, 93, 0.14);
+    background: rgba(255, 223, 93, 0.16);
     color: #ffdf5d;
+    border-color: rgba(255, 223, 93, 0.22);
   }
 }
 
@@ -1131,9 +1228,11 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
-  padding: 0 18px 14px;
+  gap: 18px;
+  padding: 0 22px 18px;
   touch-action: none;
+  position: relative;
+  z-index: 1;
 }
 
 .viewer-image-wrap {
@@ -1144,11 +1243,51 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border-radius: 30px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+    radial-gradient(circle at top, rgba(255, 223, 93, 0.08), transparent 28%),
+    rgba(255,255,255,0.02);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  position: relative;
+}
+
+.viewer-loading,
+.viewer-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: rgba(255,255,255,0.72);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.viewer-loading-orb {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.12);
+  border-top-color: #ffdf5d;
+  border-right-color: rgba(255, 223, 93, 0.48);
+  box-shadow: 0 0 24px rgba(255, 223, 93, 0.16);
+  animation: viewerSpin 0.9s linear infinite;
+}
+
+.viewer-error {
+  .el-icon {
+    font-size: 38px;
+    color: rgba(255,255,255,0.46);
+  }
 }
 
 .viewer-image {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: calc(100% - 48px);
+  max-height: calc(100% - 48px);
   object-fit: contain;
   user-select: none;
   transform-origin: center center;
@@ -1169,24 +1308,29 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 
   &:hover {
-    transform: scale(1.04);
+    transform: scale(1.06);
     background: rgba(255,255,255,0.16);
   }
 }
 
 .viewer-hint {
   text-align: center;
-  color: rgba(255,255,255,0.62);
+  color: rgba(255,255,255,0.56);
   font-size: 12px;
-  padding: 0 18px 12px;
+  letter-spacing: 0.08em;
+  padding: 0 18px 14px;
+  position: relative;
+  z-index: 1;
 }
 
 .viewer-filmstrip {
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding: 0 18px 18px;
+  padding: 0 22px 22px;
   justify-content: center;
+  position: relative;
+  z-index: 1;
 
   &::-webkit-scrollbar {
     height: 4px;
@@ -1202,7 +1346,7 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   width: 62px;
   height: 62px;
   padding: 0;
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
   border: 2px solid transparent;
   background: rgba(255,255,255,0.08);
@@ -1222,6 +1366,7 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
 
   &.active {
     border-color: rgba(255, 223, 93, 0.9);
+    box-shadow: 0 10px 24px rgba(255, 223, 93, 0.12);
   }
 }
 
@@ -1241,6 +1386,7 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pop { 50% { transform: scale(1.3); } }
+@keyframes viewerSpin { to { transform: rotate(360deg); } }
 
 /* 响应式 */
 @media (max-width: 900px) {
@@ -1259,6 +1405,10 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
     width: 100vw;
     height: 100vh;
     border-radius: 0;
+  }
+
+  .viewer-caption {
+    max-width: 52vw;
   }
 
   .viewer-stage {
@@ -1330,6 +1480,14 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
   .viewer-stage {
     grid-template-columns: minmax(0, 1fr);
     padding: 0 8px 8px;
+  }
+
+  .viewer-meta {
+    max-width: calc(100vw - 150px);
+  }
+
+  .viewer-caption {
+    font-size: 13px;
   }
 
   .viewer-nav {

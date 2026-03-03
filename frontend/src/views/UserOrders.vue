@@ -3,10 +3,7 @@
 
     <div class="nav-header">
       <div class="container nav-content">
-        <div class="back-btn" @click="$router.push('/')">
-          <IconifySymbol icon="lucide:house" size="16" color="#667183" />
-          <span>回首页</span>
-        </div>
+        <BackHomePill />
         <div class="page-title">
           <IconifySymbol icon="lucide:clipboard-list" size="18" color="#202633" />
           <span>我的订单</span>
@@ -146,6 +143,7 @@ import request, { resolveUrl } from '@/utils/request'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import IconifySymbol from '@/components/IconifySymbol.vue'
+import BackHomePill from '@/components/BackHomePill.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -352,7 +350,6 @@ $bg-page: #f6f7f9;
 .nav-header {
   height: 60px; background: #fff; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
   .nav-content { height: 100%; display: flex; align-items: center; justify-content: space-between; }
-  .back-btn { cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: #666; &:hover { color: #333; } }
   .page-title { font-weight: 800; font-size: 18px; color: #333; display: flex; align-items: center; gap: 8px; }
   .placeholder { width: 80px; }
 }

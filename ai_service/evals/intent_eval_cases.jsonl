@@ -1,0 +1,110 @@
+{"id": "add_to_cart_name-01", "scenario": "add_to_cart_name", "text": "把iPhone 15 Pro Max加入购物车", "expected_action": "cart.add", "expected_params": {"product_name": "iPhone 15 Pro Max"}}
+{"id": "add_to_cart_name-02", "scenario": "add_to_cart_name", "text": "麻烦把 AirPods Pro 2 加到购物车", "expected_action": "cart.add", "expected_params": {"product_name": "AirPods Pro 2"}}
+{"id": "add_to_cart_name-03", "scenario": "add_to_cart_name", "text": "请把“Switch OLED”加入到购物车", "expected_action": "cart.add", "expected_params": {"product_name": "Switch OLED"}}
+{"id": "add_to_cart_name-04", "scenario": "add_to_cart_name", "text": "我要把索尼 WH-1000XM5加购", "expected_action": "cart.add", "expected_params": {"product_name": "索尼 WH-1000XM5"}}
+{"id": "add_to_cart_name-05", "scenario": "add_to_cart_name", "text": "把小米 14 Ultra 放进购物袋", "expected_action": "cart.add", "expected_params": {"product_name": "小米 14 Ultra"}}
+{"id": "add_to_cart_name-06", "scenario": "add_to_cart_name", "text": "将 MacBook Air M3 添加到我的购物车", "expected_action": "cart.add", "expected_params": {"product_name": "MacBook Air M3"}}
+{"id": "add_to_cart_name-07", "scenario": "add_to_cart_name", "text": "帮我把佳能 R50 塞进购物车", "expected_action": "cart.add", "expected_params": {"product_name": "佳能 R50"}}
+{"id": "add_to_cart_name-08", "scenario": "add_to_cart_name", "text": "请把机械键盘 K8 放到车里", "expected_action": "cart.add", "expected_params": {"product_name": "机械键盘 K8"}}
+{"id": "add_to_cart_name-09", "scenario": "add_to_cart_name", "text": "我想把任天堂限定手柄加入购物车", "expected_action": "cart.add", "expected_params": {"product_name": "任天堂限定手柄"}}
+{"id": "add_to_cart_name-10", "scenario": "add_to_cart_name", "text": "麻烦把戴森吹风机加到购物车", "expected_action": "cart.add", "expected_params": {"product_name": "戴森吹风机"}}
+{"id": "add_to_cart_id-01", "scenario": "add_to_cart_id", "text": "把101加入购物车", "expected_action": "cart.add", "expected_params": {"product_id": 101}}
+{"id": "add_to_cart_id-02", "scenario": "add_to_cart_id", "text": "帮我102加入到购物车", "expected_action": "cart.add", "expected_params": {"product_id": 102}}
+{"id": "add_to_cart_id-03", "scenario": "add_to_cart_id", "text": "请把商品103加入购物车", "expected_action": "cart.add", "expected_params": {"product_id": 103}}
+{"id": "add_to_cart_id-04", "scenario": "add_to_cart_id", "text": "将104号商品放进购物袋", "expected_action": "cart.add", "expected_params": {"product_id": 104}}
+{"id": "add_to_cart_id-05", "scenario": "add_to_cart_id", "text": "把105加购", "expected_action": "cart.add", "expected_params": {"product_id": 105}}
+{"id": "add_to_cart_id-06", "scenario": "add_to_cart_id", "text": "商品106放到车里", "expected_action": "cart.add", "expected_params": {"product_id": 106}}
+{"id": "add_to_cart_id-07", "scenario": "add_to_cart_id", "text": "请把 107 加入购物车", "expected_action": "cart.add", "expected_params": {"product_id": 107}}
+{"id": "add_to_cart_id-08", "scenario": "add_to_cart_id", "text": "帮我把108加到购物袋", "expected_action": "cart.add", "expected_params": {"product_id": 108}}
+{"id": "add_to_cart_id-09", "scenario": "add_to_cart_id", "text": "把109号商品加进购物车", "expected_action": "cart.add", "expected_params": {"product_id": 109}}
+{"id": "add_to_cart_id-10", "scenario": "add_to_cart_id", "text": "将110加入到我的购物车", "expected_action": "cart.add", "expected_params": {"product_id": 110}}
+{"id": "orders_buyer-01", "scenario": "orders_buyer", "text": "帮我查一下我买的订单", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-02", "scenario": "orders_buyer", "text": "看看我的订单", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-03", "scenario": "orders_buyer", "text": "查下待付款订单", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-04", "scenario": "orders_buyer", "text": "我买到的订单现在啥状态", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-05", "scenario": "orders_buyer", "text": "帮我看看我的待发货订单", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-06", "scenario": "orders_buyer", "text": "查我买到的物流", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-07", "scenario": "orders_buyer", "text": "我买的单子到哪了", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-08", "scenario": "orders_buyer", "text": "帮我翻一下买家订单", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-09", "scenario": "orders_buyer", "text": "看下我的收货订单", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_buyer-10", "scenario": "orders_buyer", "text": "查查我的购买记录", "expected_action": "orders.list", "expected_params": {"role": "buyer"}}
+{"id": "orders_seller-01", "scenario": "orders_seller", "text": "帮我查一下我卖出的订单", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-02", "scenario": "orders_seller", "text": "看看卖家订单", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-03", "scenario": "orders_seller", "text": "查下我卖掉的订单", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-04", "scenario": "orders_seller", "text": "我卖出的订单现在啥状态", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-05", "scenario": "orders_seller", "text": "帮我看看待发货的卖家订单", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-06", "scenario": "orders_seller", "text": "查我发出去的单子", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-07", "scenario": "orders_seller", "text": "卖出的订单都怎么样了", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-08", "scenario": "orders_seller", "text": "帮我翻一下卖货订单", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-09", "scenario": "orders_seller", "text": "看下我作为卖家的订单", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_seller-10", "scenario": "orders_seller", "text": "查查我卖出的物流", "expected_action": "orders.list", "expected_params": {"role": "seller"}}
+{"id": "orders_ambiguous-01", "scenario": "orders_ambiguous", "text": "查订单", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-02", "scenario": "orders_ambiguous", "text": "看看订单", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-03", "scenario": "orders_ambiguous", "text": "订单状态怎么样", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-04", "scenario": "orders_ambiguous", "text": "帮我看下订单", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-05", "scenario": "orders_ambiguous", "text": "查一下物流", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-06", "scenario": "orders_ambiguous", "text": "订单现在到哪步了", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-07", "scenario": "orders_ambiguous", "text": "帮我看看最近的单子", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-08", "scenario": "orders_ambiguous", "text": "我想查订单进度", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-09", "scenario": "orders_ambiguous", "text": "查查最近物流", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "orders_ambiguous-10", "scenario": "orders_ambiguous", "text": "看看单子", "expected_action": "chat_only", "expected_clarification_kind": "orders_scope"}
+{"id": "search_category-01", "scenario": "search_category", "text": "来点数码商品", "expected_action": "products.list", "expected_params": {"category": "数码"}}
+{"id": "search_category-02", "scenario": "search_category", "text": "看看书籍类宝贝", "expected_action": "products.list", "expected_params": {"category": "书籍"}}
+{"id": "search_category-03", "scenario": "search_category", "text": "有没有生活闲置", "expected_action": "products.list", "expected_params": {"category": "生活"}}
+{"id": "search_category-04", "scenario": "search_category", "text": "搜一下服饰", "expected_action": "products.list", "expected_params": {"category": "服饰"}}
+{"id": "search_category-05", "scenario": "search_category", "text": "来点运动商品", "expected_action": "products.list", "expected_params": {"category": "运动"}}
+{"id": "search_category-06", "scenario": "search_category", "text": "看看美妆类宝贝", "expected_action": "products.list", "expected_params": {"category": "美妆"}}
+{"id": "search_category-07", "scenario": "search_category", "text": "有没有乐器闲置", "expected_action": "products.list", "expected_params": {"category": "乐器"}}
+{"id": "search_category-08", "scenario": "search_category", "text": "搜一下手游", "expected_action": "products.list", "expected_params": {"category": "手游"}}
+{"id": "search_category-09", "scenario": "search_category", "text": "来点兼职信息", "expected_action": "products.list", "expected_params": {"category": "兼职"}}
+{"id": "search_category-10", "scenario": "search_category", "text": "看看其他类商品", "expected_action": "products.list", "expected_params": {"category": "其他"}}
+{"id": "search_keyword-01", "scenario": "search_keyword", "text": "帮我搜一下露营灯", "expected_action": "products.list", "expected_params": {"search": "露营灯"}}
+{"id": "search_keyword-02", "scenario": "search_keyword", "text": "找找二手相机", "expected_action": "products.list", "expected_params": {"search": "二手相机"}}
+{"id": "search_keyword-03", "scenario": "search_keyword", "text": "查下羽毛球拍", "expected_action": "products.list", "expected_params": {"search": "羽毛球拍"}}
+{"id": "search_keyword-04", "scenario": "search_keyword", "text": "推荐点考研书", "expected_action": "products.list", "expected_params": {"search": "考研书"}}
+{"id": "search_keyword-05", "scenario": "search_keyword", "text": "看看有没有复古耳机", "expected_action": "products.list", "expected_params": {"search": "复古耳机"}}
+{"id": "search_keyword-06", "scenario": "search_keyword", "text": "帮我搜一下宿舍小冰箱", "expected_action": "products.list", "expected_params": {"search": "宿舍小冰箱"}}
+{"id": "search_keyword-07", "scenario": "search_keyword", "text": "找找黑胶唱片", "expected_action": "products.list", "expected_params": {"search": "黑胶唱片"}}
+{"id": "search_keyword-08", "scenario": "search_keyword", "text": "查下桌面音箱", "expected_action": "products.list", "expected_params": {"search": "桌面音箱"}}
+{"id": "search_keyword-09", "scenario": "search_keyword", "text": "推荐点电竞鼠标", "expected_action": "products.list", "expected_params": {"search": "电竞鼠标"}}
+{"id": "search_keyword-10", "scenario": "search_keyword", "text": "看看有没有法语教材", "expected_action": "products.list", "expected_params": {"search": "法语教材"}}
+{"id": "cart_query-01", "scenario": "cart_query", "text": "看看我的购物车", "expected_action": "cart.list"}
+{"id": "cart_query-02", "scenario": "cart_query", "text": "查一下购物车", "expected_action": "cart.list"}
+{"id": "cart_query-03", "scenario": "cart_query", "text": "打开购物车", "expected_action": "cart.list"}
+{"id": "cart_query-04", "scenario": "cart_query", "text": "购物车里有啥", "expected_action": "cart.list"}
+{"id": "cart_query-05", "scenario": "cart_query", "text": "帮我列出购物车", "expected_action": "cart.list"}
+{"id": "cart_query-06", "scenario": "cart_query", "text": "查查我的购物袋", "expected_action": "cart.list"}
+{"id": "cart_query-07", "scenario": "cart_query", "text": "让我看看车里有什么", "expected_action": "cart.list"}
+{"id": "cart_query-08", "scenario": "cart_query", "text": "把购物车打开", "expected_action": "cart.list"}
+{"id": "cart_query-09", "scenario": "cart_query", "text": "我购物车现在啥情况", "expected_action": "cart.list"}
+{"id": "cart_query-10", "scenario": "cart_query", "text": "想看购物车内容", "expected_action": "cart.list"}
+{"id": "favorites_query-01", "scenario": "favorites_query", "text": "看看我的收藏", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-02", "scenario": "favorites_query", "text": "查一下心愿单", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-03", "scenario": "favorites_query", "text": "我都收藏了啥", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-04", "scenario": "favorites_query", "text": "帮我列出想要的商品", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-05", "scenario": "favorites_query", "text": "翻翻我的收藏夹", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-06", "scenario": "favorites_query", "text": "看下我收藏的东西", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-07", "scenario": "favorites_query", "text": "我的心愿单里有啥", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-08", "scenario": "favorites_query", "text": "帮我查查收藏", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-09", "scenario": "favorites_query", "text": "想看看收藏列表", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "favorites_query-10", "scenario": "favorites_query", "text": "查一下我想要的宝贝", "expected_action": "user.data", "expected_params": {"type": "favorites"}}
+{"id": "nickname_update-01", "scenario": "nickname_update", "text": "昵称改成旧物猎人", "expected_action": "user.profile.update", "expected_params": {"nickname": "旧物猎人"}}
+{"id": "nickname_update-02", "scenario": "nickname_update", "text": "把我的昵称改为阿梨杂货铺", "expected_action": "user.profile.update", "expected_params": {"nickname": "阿梨杂货铺"}}
+{"id": "nickname_update-03", "scenario": "nickname_update", "text": "名字换成晚风寄卖站", "expected_action": "user.profile.update", "expected_params": {"nickname": "晚风寄卖站"}}
+{"id": "nickname_update-04", "scenario": "nickname_update", "text": "称呼设为胶片不眠夜", "expected_action": "user.profile.update", "expected_params": {"nickname": "胶片不眠夜"}}
+{"id": "nickname_update-05", "scenario": "nickname_update", "text": "昵称改成耳机收藏夹", "expected_action": "user.profile.update", "expected_params": {"nickname": "耳机收藏夹"}}
+{"id": "nickname_update-06", "scenario": "nickname_update", "text": "把我的昵称改为慢慢出闲置", "expected_action": "user.profile.update", "expected_params": {"nickname": "慢慢出闲置"}}
+{"id": "nickname_update-07", "scenario": "nickname_update", "text": "名字换成小满旧物铺", "expected_action": "user.profile.update", "expected_params": {"nickname": "小满旧物铺"}}
+{"id": "nickname_update-08", "scenario": "nickname_update", "text": "称呼设为周末换新", "expected_action": "user.profile.update", "expected_params": {"nickname": "周末换新"}}
+{"id": "nickname_update-09", "scenario": "nickname_update", "text": "昵称改成纸箱藏宝图", "expected_action": "user.profile.update", "expected_params": {"nickname": "纸箱藏宝图"}}
+{"id": "nickname_update-10", "scenario": "nickname_update", "text": "把我的昵称改为楼下拾光", "expected_action": "user.profile.update", "expected_params": {"nickname": "楼下拾光"}}
+{"id": "settings_ambiguous-01", "scenario": "settings_ambiguous", "text": "帮我改一下资料", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-02", "scenario": "settings_ambiguous", "text": "我想修改个人信息", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-03", "scenario": "settings_ambiguous", "text": "设置一下账号资料", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-04", "scenario": "settings_ambiguous", "text": "帮我调整主页信息", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-05", "scenario": "settings_ambiguous", "text": "改改我的账户信息", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-06", "scenario": "settings_ambiguous", "text": "我想改一下个人资料", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-07", "scenario": "settings_ambiguous", "text": "帮我重新设置资料", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-08", "scenario": "settings_ambiguous", "text": "账号信息想调整一下", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-09", "scenario": "settings_ambiguous", "text": "个人主页信息得改改", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}
+{"id": "settings_ambiguous-10", "scenario": "settings_ambiguous", "text": "帮我动一下资料", "expected_action": "chat_only", "expected_clarification_kind": "profile_field"}

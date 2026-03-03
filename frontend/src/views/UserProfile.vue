@@ -4,9 +4,7 @@
 
     <div class="container">
       <div class="profile-nav animate-up">
-        <div class="back-btn glass-effect" @click="$router.push('/')">
-          <el-icon><ArrowLeft /></el-icon> 返回首页
-        </div>
+        <BackHomePill class="profile-home-btn" />
       </div>
 
       <div class="main-layout">
@@ -246,7 +244,8 @@ import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Camera, Iphone, Edit, ArrowLeft, Goods, Star, Plus, Lock, Box, Message } from '@element-plus/icons-vue'
+import { Camera, Iphone, Edit, Goods, Star, Plus, Lock, Box, Message } from '@element-plus/icons-vue'
+import BackHomePill from '@/components/BackHomePill.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -534,18 +533,10 @@ $bg-page: #f6f7f9;
 .profile-nav {
   margin-bottom: 18px;
   position: relative; z-index: 10;
+}
 
-  .back-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 10px 24px; border-radius: 99px;
-    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-    font-weight: bold; color: #333; cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06); transition: 0.3s;
-    border: 1px solid #fff;
-    margin-top: 20px;
-
-    &:hover { transform: translateX(-4px); background: #fff; box-shadow: 0 6px 16px rgba(0,0,0,0.1); }
-  }
+.profile-home-btn {
+  margin-top: 20px;
 }
 
 .main-layout { display: grid; grid-template-columns: 340px 1fr; gap: 28px; align-items: start; position: relative; z-index: 5; }
