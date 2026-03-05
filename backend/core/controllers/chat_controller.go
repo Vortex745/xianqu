@@ -8,6 +8,7 @@ import (
 	"gotest/pkg/ws"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -15,6 +16,12 @@ import (
 
 type ChatController struct {
 	Hub *ws.Hub
+}
+
+type sendMessageRequest struct {
+	ReceiverID uint   `json:"receiver_id"`
+	Content    string `json:"content"`
+	Type       int    `json:"type"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -77,6 +84,43 @@ func (cc *ChatController) GetHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": messages})
+}
+
+// SendMessage HTTP 发送消息（用于 WebSocket 不可用时兜底）
+func (cc *ChatController) SendMessage(c *gin.Context) {
+	uid, _ := c.Get("userID")
+	userID := uid.(uint)
+
+	var req sendMessageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误"})
+		return
+	}
+
+	content := strings.TrimSpace(req.Content)
+	if req.ReceiverID == 0 || content == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "消息内容不能为空"})
+		return
+	}
+
+	msgType := req.Type
+	if msgType != 1 && msgType != 2 {
+		msgType = 1
+	}
+
+	msg := models.Message{
+		SenderID:   userID,
+		ReceiverID: req.ReceiverID,
+		Content:    content,
+		Type:       msgType,
+	}
+
+	if err := config.DB.Create(&msg).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "消息发送失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": msg})
 }
 
 // GetContacts 获取最近联系人列表 (真实逻辑修复版)

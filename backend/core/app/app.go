@@ -116,6 +116,7 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 			{
 				chatGroup.GET("/contacts", chatController.GetContacts)
 				chatGroup.GET("/messages", chatController.GetHistory)
+				chatGroup.POST("/messages", chatController.SendMessage)
 			}
 			userGroup.POST("/upload", fileController.Upload)
 			userGroup.POST("/products", productController.Create)

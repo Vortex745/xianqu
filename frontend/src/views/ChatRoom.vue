@@ -8,7 +8,7 @@
 
         <div class="user-info">
           <span class="name">{{ targetUser.nickname || targetUser.username || ('用户 ' + targetId) }}</span>
-          <span class="status-badge">{{ wsConnected ? '在线' : '重连中' }}</span>
+          <span class="status-badge">{{ connectionLabel }}</span>
         </div>
 
         <div class="placeholder"></div>
@@ -157,11 +157,20 @@ const messages = ref([])
 const inputText = ref('')
 const msgBoxRef = ref(null)
 const wsConnected = ref(false)
+const httpFallback = ref(false)
 let socket = null
 let reconnectTimer = null
+let historyPollTimer = null
 let reconnectCount = 0
+let historyLoading = false
+let fallbackTipShown = false
+const MAX_AUTO_RECONNECT = 3
 
-const canSend = computed(() => !!inputText.value.trim() && wsConnected.value)
+const canSend = computed(() => !!inputText.value.trim())
+const connectionLabel = computed(() => {
+  if (wsConnected.value) return '在线'
+  return httpFallback.value ? '普通模式' : '重连中'
+})
 
 const uploadUrl = computed(() => {
   const baseUrl = String(import.meta.env.VITE_API_URL || '/').trim()
@@ -240,6 +249,8 @@ const fetchTargetInfo = async () => {
 }
 
 const fetchHistory = async () => {
+  if (historyLoading) return
+  historyLoading = true
   try {
     const res = await request.get('/api/chat/messages', { params: { target_id: targetId } })
     const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])
@@ -247,6 +258,8 @@ const fetchHistory = async () => {
     scrollToBottom()
   } catch (error) {
     console.error('获取历史消息失败', error)
+  } finally {
+    historyLoading = false
   }
 }
 
@@ -276,8 +289,37 @@ const clearReconnectTimer = () => {
   }
 }
 
+const stopHistoryPolling = () => {
+  if (historyPollTimer) {
+    clearInterval(historyPollTimer)
+    historyPollTimer = null
+  }
+}
+
+const startHistoryPolling = () => {
+  if (historyPollTimer) return
+  historyPollTimer = setInterval(() => {
+    fetchHistory()
+  }, 3000)
+}
+
+const enableHttpFallback = (showTip = false) => {
+  httpFallback.value = true
+  wsConnected.value = false
+  clearReconnectTimer()
+  startHistoryPolling()
+  if (showTip && !fallbackTipShown) {
+    fallbackTipShown = true
+    ElMessage.info('实时连接不可用，已切换普通消息模式')
+  }
+}
+
 const scheduleReconnect = () => {
-  if (reconnectTimer || !localStorage.getItem('token')) return
+  if (httpFallback.value || reconnectTimer || !localStorage.getItem('token')) return
+  if (reconnectCount >= MAX_AUTO_RECONNECT) {
+    enableHttpFallback(true)
+    return
+  }
   const delay = Math.min(8000, 1200 * Math.max(1, reconnectCount))
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
@@ -294,12 +336,22 @@ const initWebSocket = () => {
     return
   }
 
-  socket = new WebSocket(buildWsUrl())
+  try {
+    socket = new WebSocket(buildWsUrl())
+  } catch (error) {
+    console.error('创建 WebSocket 失败', error)
+    enableHttpFallback(true)
+    return
+  }
 
   socket.onopen = () => {
     wsConnected.value = true
+    httpFallback.value = false
+    fallbackTipShown = false
     reconnectCount = 0
     clearReconnectTimer()
+    stopHistoryPolling()
+    fetchHistory()
   }
 
   socket.onmessage = (event) => {
@@ -327,21 +379,42 @@ const initWebSocket = () => {
   }
 }
 
-const sendWsMessage = (payload) => {
-  if (!socket || socket.readyState !== WebSocket.OPEN) {
-    ElMessage.warning('连接中断，正在重连')
-    initWebSocket()
-    return false
-  }
-  socket.send(JSON.stringify(payload))
-  return true
+const appendMessageIfAbsent = (msg) => {
+  if (!msg?.content) return
+  const exists = msg.id ? messages.value.some((item) => Number(item.id) === Number(msg.id)) : false
+  if (exists) return
+  messages.value.push(msg)
+  scrollToBottom()
 }
 
-const sendMessage = () => {
+const sendHttpMessage = async (payload) => {
+  try {
+    const res = await request.post('/api/chat/messages', payload)
+    const normalized = normalizeMessage(res?.data || res)
+    appendMessageIfAbsent(normalized)
+    return true
+  } catch (error) {
+    console.error('HTTP 发送失败', error)
+    ElMessage.error('发送失败，请稍后重试')
+    return false
+  }
+}
+
+const sendMessageTransport = async (payload) => {
+  if (!httpFallback.value && socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(payload))
+    return true
+  }
+
+  enableHttpFallback(true)
+  return sendHttpMessage(payload)
+}
+
+const sendMessage = async () => {
   const content = inputText.value.trim()
   if (!content) return
 
-  const ok = sendWsMessage({
+  const ok = await sendMessageTransport({
     receiver_id: targetId,
     content,
     type: 1
@@ -368,13 +441,11 @@ const handleImageUpload = (res) => {
     return
   }
 
-  const ok = sendWsMessage({
+  sendMessageTransport({
     receiver_id: targetId,
     content: finalUrl,
     type: 2
   })
-
-  if (!ok) return
   showEmoji.value = false
 }
 
@@ -384,6 +455,9 @@ const handleUploadError = () => {
 
 const manualReconnect = () => {
   clearReconnectTimer()
+  stopHistoryPolling()
+  httpFallback.value = false
+  fallbackTipShown = false
   if (socket && socket.readyState === WebSocket.OPEN) {
     ElMessage.success('连接正常')
     return
@@ -400,6 +474,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearReconnectTimer()
+  stopHistoryPolling()
   if (socket) socket.close()
 })
 </script>
