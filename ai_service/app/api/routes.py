@@ -2,7 +2,14 @@ from fastapi import APIRouter, HTTPException
 
 from ..agent_module.service import LangChainAgentService
 from ..langchain_module.service import LangChainCustomerService
-from ..schemas.chat import AgentChatRequest, ChatRequest, ChatResponse
+from ..recommend_module.service import RecommenderService
+from ..schemas.chat import (
+    AgentChatRequest,
+    ChatRequest,
+    ChatResponse,
+    RecommendRequest,
+    RecommendResponse,
+)
 
 
 def _map_service_exception(prefix: str, exc: Exception) -> HTTPException:
@@ -17,6 +24,7 @@ def _map_service_exception(prefix: str, exc: Exception) -> HTTPException:
 def create_api_router(
     assistant: LangChainCustomerService,
     agent: LangChainAgentService,
+    recommender: RecommenderService,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -58,5 +66,20 @@ def create_api_router(
     @router.delete("/agent/session/{session_id}")
     def clear_agent_session(session_id: str) -> dict[str, bool]:
         return {"ok": True, "cleared": agent.clear_session(session_id)}
+
+    @router.post("/recommend", response_model=RecommendResponse)
+    def recommend(payload: RecommendRequest) -> RecommendResponse:
+        try:
+            product_ids, source = recommender.recommend(
+                user_id=payload.user_id,
+                user_item_scores=payload.user_item_scores,
+                behavior_rows=payload.behavior_rows,
+                candidate_products=payload.candidate_products,
+                top_k=payload.top_k,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"recommend failed: {exc}") from exc
+
+        return RecommendResponse(product_ids=product_ids, source=source)
 
     return router

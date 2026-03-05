@@ -5,6 +5,7 @@ import (
 	"gotest/config"
 	"gotest/core/middleware" // 确保导入了 middleware 包
 	"gotest/core/models"
+	"gotest/core/services"
 	"net/http"
 	"strings"
 	"time"
@@ -282,6 +283,7 @@ func (u *UserController) ToggleFavorite(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "已取消"})
 	} else {
 		config.DB.Create(&models.Favorite{UserID: userID.(uint), ProductID: input.ProductID})
+		_ = services.RecordUserBehavior(config.DB, userID.(uint), input.ProductID, "like", "favorite")
 		c.JSON(http.StatusOK, gin.H{"message": "已收藏"})
 	}
 }

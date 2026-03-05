@@ -365,6 +365,22 @@ const getLocation = () => {
 const fetchProducts = async () => {
   loading.value = true
   try {
+    const shouldUseRecommend = currentCat.value === 0 && !onlyNearby.value
+    if (shouldUseRecommend) {
+      try {
+        const recommendRes = await request.get('/api/products/recommend', {
+          params: { limit: 20 }
+        })
+        const recommendList = recommendRes.list || []
+        if (recommendList.length > 0) {
+          productList.value = recommendList.map(item => ({ ...item, image: resolveUrl(item.image) }))
+          return true
+        }
+      } catch (error) {
+        // 推荐接口失败时降级到原商品列表
+      }
+    }
+
     const params = { page: 1, page_size: 20 }
     if (currentCat.value !== 0) params.category = currentCat.value
     else params.is_random = true

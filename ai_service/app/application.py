@@ -8,6 +8,7 @@ from .api.routes import create_api_router
 from .core.config import Settings
 from .langchain_module.service import LangChainCustomerService
 from .model_manager import ModelManager
+from .recommend_module.service import RecommenderService
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
 
     assistant = LangChainCustomerService(settings, model_manager=model_manager)
     agent = LangChainAgentService(settings, model_manager=model_manager)
+    recommender = RecommenderService()
 
     app = FastAPI(title="xianqu-ai-service", version="1.0.0")
     app.add_middleware(
@@ -36,6 +38,6 @@ def create_app() -> FastAPI:
     )
     # Support both `/chat` and `/ai/chat` styles to avoid path mismatch
     # across different reverse-proxy setups.
-    app.include_router(create_api_router(assistant, agent))
-    app.include_router(create_api_router(assistant, agent), prefix="/ai")
+    app.include_router(create_api_router(assistant, agent, recommender))
+    app.include_router(create_api_router(assistant, agent, recommender), prefix="/ai")
     return app

@@ -3,6 +3,7 @@ package controllers
 import (
 	"gotest/config"
 	"gotest/core/models"
+	"gotest/core/services"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -59,6 +60,7 @@ func (cc *CartController) Add(c *gin.Context) {
 		// ★★★ 如果已存在，则累加数量 ★★★
 		cartItem.Count += input.Count
 		config.DB.Save(&cartItem)
+		_ = services.RecordUserBehavior(config.DB, uid, input.ProductID, "cart", "cart_add")
 		c.JSON(http.StatusOK, gin.H{"message": "购物车数量已更新", "data": cartItem})
 		return
 	}
@@ -74,6 +76,7 @@ func (cc *CartController) Add(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "添加失败"})
 		return
 	}
+	_ = services.RecordUserBehavior(config.DB, uid, input.ProductID, "cart", "cart_add")
 
 	c.JSON(http.StatusOK, gin.H{"message": "添加成功", "data": newCart})
 }

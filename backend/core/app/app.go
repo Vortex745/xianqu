@@ -73,10 +73,13 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 	chatController := &controllers.ChatController{Hub: hub}
 	userController := new(controllers.UserController)
 	productController := new(controllers.ProductController)
+	recommendController := new(controllers.RecommendController)
+	behaviorController := new(controllers.BehaviorController)
 	fileController := new(controllers.FileController)
 	orderController := new(controllers.OrderController)
 	cartController := new(controllers.CartController)
 	adminController := new(controllers.AdminController)
+	analyticsController := new(controllers.AnalyticsController)
 	authController := new(controllers.AuthController)
 	aiModelController := new(controllers.AIModelController)
 
@@ -92,6 +95,7 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 		api.POST("/auth/verify-login", authController.VerifyLogin)
 		api.GET("/ws", chatController.Connect)
 		api.GET("/products", productController.List)
+		api.GET("/products/recommend", recommendController.List)
 		api.GET("/products/:id", productController.GetDetail)
 		api.GET("/categories", productController.Categories)
 
@@ -107,6 +111,7 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 			userGroup.POST("/cart/add", cartController.Add)
 			userGroup.GET("/cart", cartController.List)
 			userGroup.DELETE("/cart/:id", cartController.Delete)
+			userGroup.POST("/behavior", behaviorController.Report)
 			chatGroup := userGroup.Group("/chat")
 			{
 				chatGroup.GET("/contacts", chatController.GetContacts)
@@ -141,6 +146,11 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 				authGroup.GET("/products", adminController.GetProducts)
 				authGroup.PUT("/products/:id/audit", adminController.AuditProduct)
 				authGroup.GET("/orders", adminController.GetOrders)
+				authGroup.GET("/analytics/overview", analyticsController.Overview)
+				authGroup.GET("/analytics/behavior-trend", analyticsController.BehaviorTrend)
+				authGroup.GET("/analytics/hot-products", analyticsController.HotProducts)
+				authGroup.GET("/analytics/category-stats", analyticsController.CategoryStats)
+				authGroup.GET("/analytics/user-activity", analyticsController.UserActivity)
 				aiGroup := authGroup.Group("/ai-models")
 				{
 					aiGroup.GET("", aiModelController.List)

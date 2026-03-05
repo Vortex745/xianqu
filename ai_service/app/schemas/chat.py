@@ -34,3 +34,36 @@ class ChatResponse(BaseModel):
     session_id: str
     answer: str
     meta: ChatResponseMeta | None = None
+
+
+class UserItemScore(BaseModel):
+    product_id: int = Field(..., ge=1)
+    score: float = Field(..., ge=0)
+
+
+class BehaviorRow(BaseModel):
+    user_id: int = Field(..., ge=1)
+    product_id: int = Field(..., ge=1)
+    weight: float = Field(..., ge=0)
+
+
+class CandidateProduct(BaseModel):
+    id: int = Field(..., ge=1)
+    name: str = ""
+    category: str = ""
+    price: float = 0
+    view_count: int = 0
+    popularity: float = 0
+
+
+class RecommendRequest(BaseModel):
+    user_id: int = 0
+    user_item_scores: list[UserItemScore] = Field(default_factory=list)
+    behavior_rows: list[BehaviorRow] = Field(default_factory=list)
+    candidate_products: list[CandidateProduct] = Field(default_factory=list)
+    top_k: int = 20
+
+
+class RecommendResponse(BaseModel):
+    product_ids: list[int] = Field(default_factory=list)
+    source: str = "hot"

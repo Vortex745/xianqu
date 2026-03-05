@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gotest/config"
 	"gotest/core/models"
+	"gotest/core/services"
 	"net/http"
 	"strconv" // ★★★ 新增：用于订单号拼接
 	"time"
@@ -77,6 +78,7 @@ func (o *OrderController) Create(c *gin.Context) {
 	}
 
 	tx.Commit()
+	_ = services.RecordUserBehavior(config.DB, uid, product.ID, "buy", "order_create")
 	c.JSON(http.StatusOK, gin.H{"message": "下单成功", "data": order})
 }
 
@@ -374,6 +376,9 @@ func (o *OrderController) BatchCreate(c *gin.Context) {
 
 	// 3. 提交事务
 	tx.Commit()
+	for _, order := range createdOrders {
+		_ = services.RecordUserBehavior(config.DB, uid, order.ProductID, "buy", "order_batch")
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "结算成功", "data": createdOrders})
 }

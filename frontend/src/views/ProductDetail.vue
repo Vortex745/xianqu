@@ -265,6 +265,23 @@ const touchState = {
   pinchDistance: 0
 }
 
+const hasAuthToken = () => {
+  return !!String(localStorage.getItem('token') || '').trim()
+}
+
+const reportViewBehavior = async (productID) => {
+  if (!productID || !hasAuthToken() || !user?.id) return
+  try {
+    await request.post('/api/behavior', {
+      product_id: productID,
+      action: 'view',
+      source: 'product_detail'
+    })
+  } catch (error) {
+    // 浏览埋点失败不影响详情页交互
+  }
+}
+
 const isOwner = computed(() => {
   return user && product.value.user_id && String(user.id) === String(product.value.user_id)
 })
@@ -606,6 +623,7 @@ const fetchDetail = async () => {
     activeGalleryIndex.value = 0
     stageImageFailed.value = false
     viewerIndex.value = 0
+    reportViewBehavior(Number(data.id))
 
     // 读取真实收藏数
     collectCount.value = res.collect_count || 0

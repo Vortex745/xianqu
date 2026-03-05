@@ -47,8 +47,13 @@
             <span class="menu-label">AI模型</span>
           </el-menu-item>
 
-          <el-menu-item index="/admin/ai-dashboard">
+          <el-menu-item index="/admin/analytics">
             <div class="menu-icon"><el-icon><DataLine /></el-icon></div>
+            <span class="menu-label">行为分析</span>
+          </el-menu-item>
+
+          <el-menu-item index="/admin/ai-dashboard">
+            <div class="menu-icon"><el-icon><Coin /></el-icon></div>
             <span class="menu-label">AI看板</span>
           </el-menu-item>
         </el-menu>
@@ -95,7 +100,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Odometer, User, Goods, List, SwitchButton, Cpu, DataLine } from '@/icons/tw-icons.js'
+import { Odometer, User, Goods, List, SwitchButton, Cpu, DataLine, Coin } from '@/icons/tw-icons.js'
 import { ElMessageBox, ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -111,6 +116,7 @@ const currentRouteName = computed(() => {
     '/admin/users': '用户管理 User',
     '/admin/products': '商品审核 Product',
     '/admin/orders': '订单中心 Order',
+    '/admin/analytics': '行为分析 Analytics',
     '/admin/ai-models': 'AI模型管理 Model',
     '/admin/ai-dashboard': 'AI数据看板 Dashboard'
   }

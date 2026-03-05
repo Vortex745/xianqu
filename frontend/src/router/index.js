@@ -29,6 +29,7 @@ const AdminDashboard = () => import('@/views/admin/Dashboard.vue')
 const AdminUserManagement = () => import('@/views/admin/UserManagement.vue')
 const AdminProductAudit = () => import('@/views/admin/ProductAudit.vue')
 const AdminOrderManagement = () => import('@/views/admin/OrderManagement.vue')
+const AdminAnalytics = () => import('@/views/admin/Analytics.vue')
 const AdminAIModelManagement = () => import('@/views/admin/AIModelManagement.vue')
 const AdminAIModelDashboard = () => import('@/views/admin/AIModelDashboard.vue')
 
@@ -162,6 +163,11 @@ const routes = [
                 path: 'orders',
                 name: 'AdminOrders',
                 component: AdminOrderManagement
+            },
+            {
+                path: 'analytics',
+                name: 'AdminAnalytics',
+                component: AdminAnalytics
             },
             {
                 path: 'ai-models',
