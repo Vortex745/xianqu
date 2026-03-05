@@ -34,6 +34,12 @@ ai_service/.venv/
 ai_service/.env
 ai_service/__pycache__/
 ai_service/ai_service.log
+**/__pycache__/
+*.py[cod]
+
+# Cloud / deploy caches
+.wrangler/
+**/.wrangler/
 
 # Env
 .env

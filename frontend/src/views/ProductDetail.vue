@@ -113,12 +113,13 @@
               <span class="text">{{ isLiked ? '已收藏' : '想要' }}</span>
             </div>
 
-            <div class="main-btns">
+            <div class="main-btns" :class="{ 'with-chat': !isOwner }">
               <template v-if="isOwner">
                 <button class="btn btn-cart" disabled style="background: #f5f5f5; color: #999; cursor: not-allowed;">我是卖家</button>
                 <button class="btn btn-buy" disabled style="background: #eee; color: #999; box-shadow: none; cursor: not-allowed;">不可购买</button>
               </template>
               <template v-else>
+                <button class="btn btn-chat" @click="goToChat">聊聊</button>
                 <button class="btn btn-cart" @click="addToCart">加入购物车</button>
                 <button class="btn btn-buy" :disabled="buyLoading" @click="handleBuy">
                   {{ buyLoading ? '跳转中...' : '立即购买' }}
@@ -679,6 +680,15 @@ const addToCart = async () => {
   }
 }
 
+const goToChat = () => {
+  const sellerId = Number(product.value.user_id)
+  if (!sellerId) {
+    ElMessage.warning('暂时无法发起聊天')
+    return
+  }
+  router.push(`/chat/${sellerId}`)
+}
+
 const jumpToLogin = () => {
   router.push({
     path: '/',
@@ -1104,6 +1114,22 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
       font-size: 15px; font-weight: 800; cursor: pointer; transition: 0.2s;
       &:active { transform: scale(0.98); }
     }
+    &.with-chat {
+      .btn {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+    }
+    .btn-chat {
+      background: #f6f7fa;
+      color: #3b4554;
+      border: 1px solid rgba(26, 31, 41, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      &:hover {
+        background: #eceff5;
+        color: #1f2530;
+      }
+    }
     .btn-cart { background: #fff4d6; color: #bfa12f; &:hover { background: #ffe08a; } }
     .btn-buy {
       background: $dark; color: $primary;
@@ -1464,6 +1490,9 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
     .main-btns {
       gap: 8px;
       .btn { height: 40px; font-size: 14px; }
+      &.with-chat .btn {
+        font-size: 13px;
+      }
     }
   }
 
