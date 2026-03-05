@@ -5,6 +5,7 @@ import (
 	"gotest/config"
 	"gotest/core/models"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -14,7 +15,7 @@ const (
 	writeWait      = 10 * time.Second
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 512
+	maxMessageSize = 8 * 1024 * 1024
 )
 
 // Client 代表一个 WebSocket 连接用户
@@ -59,12 +60,31 @@ func (c *Client) ReadPump() {
 			continue
 		}
 
+		content := strings.TrimSpace(input.Content)
+		if input.ReceiverID == 0 || content == "" {
+			continue
+		}
+
+		msgType := input.Type
+		if msgType != 1 && msgType != 2 {
+			lowerContent := strings.ToLower(content)
+			if strings.HasPrefix(lowerContent, "data:image/") ||
+				strings.HasPrefix(lowerContent, "http://") ||
+				strings.HasPrefix(lowerContent, "https://") ||
+				strings.HasPrefix(lowerContent, "/uploads/") ||
+				strings.HasPrefix(lowerContent, "uploads/") {
+				msgType = 2
+			} else {
+				msgType = 1
+			}
+		}
+
 		// 2. 构造数据库模型
 		msgModel := models.Message{
 			SenderID:   c.UserID,
 			ReceiverID: input.ReceiverID,
-			Content:    input.Content,
-			Type:       input.Type,
+			Content:    content,
+			Type:       msgType,
 			// CreatedAt 由 GORM 自动生成
 		}
 
