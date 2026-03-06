@@ -141,12 +141,56 @@
           </div>
 
           <div class="action-footer">
-            <div class="status-box" v-if="isEditMode">
-              <el-radio-group v-model="publishForm.status">
-                <el-radio :label="1">上架中</el-radio>
-                <el-radio :label="3">已下架</el-radio>
-                <el-radio :label="2" disabled v-if="publishForm.status === 2">已售出</el-radio>
-              </el-radio-group>
+            <div
+              class="listing-panel"
+              v-if="isEditMode"
+              :class="`is-${statusDisplay.key}`"
+            >
+              <div class="listing-copy">
+                <div class="listing-kicker">上架状态</div>
+                <div class="listing-heading">
+                  <span class="listing-badge">{{ statusDisplay.label }}</span>
+                  <strong>{{ statusDisplay.title }}</strong>
+                </div>
+                <p class="listing-desc">{{ statusDisplay.desc }}</p>
+
+                <div class="listing-chips">
+                  <button
+                    type="button"
+                    class="listing-chip"
+                    :class="{ active: normalizedStatus === 1 }"
+                    :disabled="isSoldStatus"
+                    @click="updateShelfStatus(1)"
+                  >
+                    上架中
+                  </button>
+                  <button
+                    type="button"
+                    class="listing-chip"
+                    :class="{ active: normalizedStatus === 3 }"
+                    :disabled="isSoldStatus"
+                    @click="updateShelfStatus(3)"
+                  >
+                    已下架
+                  </button>
+                  <span class="listing-tip">
+                    {{ isSoldStatus ? '已售商品不再重新上架' : '切换后，点右侧保存' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="listing-side">
+                <button
+                  type="button"
+                  class="shelf-btn"
+                  :class="{ 'is-offline': normalizedStatus === 1, 'is-disabled': isSoldStatus }"
+                  :disabled="isSoldStatus"
+                  @click="toggleShelfStatus"
+                >
+                  {{ shelfActionLabel }}
+                </button>
+                <div class="listing-side-note">{{ statusDisplay.note }}</div>
+              </div>
             </div>
             <div class="spacer" v-else></div>
 
@@ -234,6 +278,42 @@ const publishForm = reactive({
   is_negotiable: false,
   is_home_delivery: false,
   is_self_pickup: false
+})
+
+const normalizedStatus = computed(() => Number(publishForm.status || 1))
+const isSoldStatus = computed(() => normalizedStatus.value === 2)
+
+const statusDisplay = computed(() => {
+  const statusMap = {
+    1: {
+      key: 'live',
+      label: '正在露脸',
+      title: '商品在架上',
+      desc: '买家现在能搜到，也能直接点进来问价。',
+      note: '想歇一会，就先收回仓库。'
+    },
+    2: {
+      key: 'sold',
+      label: '已经成交',
+      title: '这件卖完了',
+      desc: '成交记录会保留，这个状态不会再改回去。',
+      note: '已售状态锁定，不开放重新上架。'
+    },
+    3: {
+      key: 'warehouse',
+      label: '先藏一会',
+      title: '商品已下架',
+      desc: '前台暂时看不到，但资料和图片都还在。',
+      note: '准备好了，再一键重新摆出来。'
+    }
+  }
+
+  return statusMap[normalizedStatus.value] || statusMap[1]
+})
+
+const shelfActionLabel = computed(() => {
+  if (isSoldStatus.value) return '已售出'
+  return normalizedStatus.value === 1 ? '下架到仓库' : '重新上架'
 })
 
 const getLocation = () => {
@@ -361,6 +441,30 @@ const beforeUpload = (file) => {
 
 const toggleTradeOption = (field) => {
   publishForm[field] = !publishForm[field]
+}
+
+const updateShelfStatus = (nextStatus) => {
+  const targetStatus = Number(nextStatus)
+
+  if (isSoldStatus.value) {
+    ElMessage.warning('已售商品不能重新上架')
+    return
+  }
+
+  if (targetStatus !== 1 && targetStatus !== 3) return
+  if (normalizedStatus.value === targetStatus) return
+
+  publishForm.status = targetStatus
+  ElMessage.success(targetStatus === 1 ? '已切到上架状态，记得保存' : '已切到下架状态，记得保存')
+}
+
+const toggleShelfStatus = () => {
+  if (isSoldStatus.value) {
+    ElMessage.warning('已售商品不能重新上架')
+    return
+  }
+
+  updateShelfStatus(normalizedStatus.value === 1 ? 3 : 1)
 }
 
 const submitPublish = async () => {
@@ -817,9 +921,219 @@ $bg-color: #f6f7f9;
   padding-top: 32px;
   border-top: 2px solid #f6f6f6;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: stretch;
+  justify-content: space-between;
   gap: 24px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.listing-panel {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) auto;
+  gap: 20px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(255, 218, 68, 0.28), transparent 34%),
+    linear-gradient(135deg, #fffdf6 0%, #f7f2df 100%);
+  box-shadow: 0 18px 40px rgba(16, 24, 40, 0.08);
+  overflow: hidden;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: -48px;
+    bottom: -58px;
+    width: 180px;
+    height: 180px;
+    border-radius: 44px;
+    background: rgba(0, 0, 0, 0.035);
+    transform: rotate(18deg);
+    pointer-events: none;
+  }
+
+  &.is-live {
+    background:
+      radial-gradient(circle at top left, rgba(255, 218, 68, 0.35), transparent 36%),
+      linear-gradient(135deg, #fffef7 0%, #f7f0d5 100%);
+  }
+
+  &.is-warehouse {
+    background:
+      radial-gradient(circle at top left, rgba(255, 218, 68, 0.18), transparent 32%),
+      linear-gradient(135deg, #fbfbf9 0%, #ebe6d6 100%);
+  }
+
+  &.is-sold {
+    background:
+      radial-gradient(circle at top left, rgba(255, 218, 68, 0.18), transparent 32%),
+      linear-gradient(135deg, #f6f2e7 0%, #e7decb 100%);
+  }
+}
+
+.listing-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.listing-kicker {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  font-weight: 700;
+  color: #555;
+  letter-spacing: 0.08em;
+}
+
+.listing-heading {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+
+  strong {
+    font-size: 24px;
+    font-weight: 900;
+    color: #111;
+    letter-spacing: -0.03em;
+  }
+}
+
+.listing-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #111;
+  color: $primary;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+}
+
+.listing-desc {
+  max-width: 520px;
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #5a5a5a;
+}
+
+.listing-chips {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.listing-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #555;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1), color 0.25s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: rgba(0, 0, 0, 0.18);
+    color: #111;
+  }
+
+  &.active {
+    background: #111;
+    color: $primary;
+    border-color: #111;
+    box-shadow: 0 12px 24px rgba(17, 17, 17, 0.18);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.listing-tip {
+  font-size: 13px;
+  font-weight: 600;
+  color: #7a7a7a;
+}
+
+.listing-side {
+  width: 210px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12px;
+}
+
+.shelf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 18px;
+  background: #111;
+  color: $primary;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 14px 24px rgba(17, 17, 17, 0.16);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s cubic-bezier(0.22, 1, 0.36, 1), color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 28px rgba(17, 17, 17, 0.2);
+  }
+
+  &.is-offline {
+    background: rgba(255, 255, 255, 0.82);
+    color: #111;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 22px rgba(17, 17, 17, 0.08);
+  }
+
+  &.is-disabled,
+  &:disabled {
+    cursor: not-allowed;
+    background: rgba(17, 17, 17, 0.16);
+    color: rgba(17, 17, 17, 0.45);
+    box-shadow: none;
+    transform: none;
+  }
+}
+
+.listing-side-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #666;
+  text-align: center;
 }
 
 .submit-btn {
@@ -858,6 +1172,46 @@ $bg-color: #f6f7f9;
   .publish-content { flex-direction: column; }
   .media-section { position: static; width: 100%; flex: none; }
   .nav-title { display: none; }
+  .action-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .listing-panel {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+  .listing-side {
+    width: 100%;
+  }
+  .submit-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .listing-panel {
+    padding: 20px 18px;
+    border-radius: 22px;
+  }
+
+  .listing-heading strong {
+    font-size: 20px;
+  }
+
+  .listing-desc {
+    font-size: 13px;
+  }
+
+  .listing-chip,
+  .shelf-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .listing-chips {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .animate-fade {
