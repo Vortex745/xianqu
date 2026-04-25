@@ -46,3 +46,5 @@ ai_service/ai_service.log
 backend/.env
 frontend/.env
 .gstack/
+
+.vercel

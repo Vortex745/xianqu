@@ -1,0 +1,19 @@
+{
+    "version": 2,
+    "buildCommand": "cd frontend && npm install && npm run build",
+    "outputDirectory": "frontend/dist",
+    "rewrites": [
+        {
+            "source": "/ai/(.*)",
+            "destination": "https://ai.530745.xyz/$1"
+        },
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/index.go"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}
