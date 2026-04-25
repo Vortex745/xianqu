@@ -46,3 +46,7 @@ ai_service/ai_service.log
 backend/.env
 frontend/.env
 .gstack/
+
+.dev.vars*
+!.dev.vars.example
+!.env.example
