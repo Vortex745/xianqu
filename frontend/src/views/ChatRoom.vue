@@ -132,6 +132,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import request, { resolveUrl } from '@/utils/request'
+import { prepareImageForVercelUpload, UPLOAD_LIMIT_LABEL } from '@/utils/imageUpload'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ChatDotRound, Picture, Promotion, Refresh } from '@element-plus/icons-vue'
 import EmojiPicker from 'vue3-emoji-picker'
@@ -425,12 +426,13 @@ const sendMessage = async () => {
   showEmoji.value = false
 }
 
-const beforeUpload = (file) => {
-  if (file.size > 8 * 1024 * 1024) {
-    ElMessage.warning('图片不能超过 8MB')
+const beforeUpload = async (file) => {
+  const result = await prepareImageForVercelUpload(file)
+  if (!result.ok) {
+    ElMessage.warning(result.message || `图片不能超过 ${UPLOAD_LIMIT_LABEL}`)
     return false
   }
-  return true
+  return result.file || true
 }
 
 const handleImageUpload = (res) => {

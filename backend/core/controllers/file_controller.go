@@ -24,6 +24,7 @@ type FileController struct{}
 const (
 	maxUploadImageDimension = 1920
 	compressedJPEGQuality   = 80
+	maxUploadRequestBytes   = 4 * 1024 * 1024
 )
 
 // Upload 处理文件上传 (支持直传 ImgBB 图床)
@@ -38,6 +39,10 @@ func (fc *FileController) Upload(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请选择文件"})
+		return
+	}
+	if file.Size > maxUploadRequestBytes {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "图片不能超过 4MB，请压缩后重试"})
 		return
 	}
 

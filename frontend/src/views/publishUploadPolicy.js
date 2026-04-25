@@ -1,3 +1,5 @@
+import { prepareImageForVercelUpload } from '@/utils/imageUpload'
+
 export function validatePublishImageUpload(file) {
   if (!file) {
     return {
@@ -9,5 +11,14 @@ export function validatePublishImageUpload(file) {
   return {
     allowed: true,
     message: ''
+  }
+}
+
+export async function preparePublishImageUpload(file) {
+  const result = await prepareImageForVercelUpload(file)
+  return {
+    allowed: result.ok,
+    message: result.message || '',
+    file: result.file
   }
 }

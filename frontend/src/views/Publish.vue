@@ -182,7 +182,7 @@ import { useRouter, useRoute } from 'vue-router'
 import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { ElMessage, ElLoading } from 'element-plus'
 import { Plus, Switch, Van, Goods, Scissor, Close, Location, Aim, Select } from '@element-plus/icons-vue'
-import { validatePublishImageUpload } from './publishUploadPolicy.js'
+import { preparePublishImageUpload } from './publishUploadPolicy.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -382,12 +382,13 @@ const handleUploadError = (err) => {
   ElMessage.error('上传失败，请检查网络')
 }
 
-const beforeUpload = (file) => {
-  const validation = validatePublishImageUpload(file)
+const beforeUpload = async (file) => {
+  const validation = await preparePublishImageUpload(file)
   if (!validation.allowed && validation.message) {
     ElMessage.warning(validation.message)
   }
-  return validation.allowed
+  if (!validation.allowed) return false
+  return validation.file || true
 }
 
 const toggleTradeOption = (field) => {

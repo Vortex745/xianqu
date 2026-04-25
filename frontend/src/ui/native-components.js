@@ -432,13 +432,15 @@ const ElUpload = defineComponent({
 
     const doUpload = async (file) => {
       if (!file) return
+      let uploadFile = file
       if (props.beforeUpload) {
         const allowed = await props.beforeUpload(file)
         if (allowed === false) return
+        if (allowed instanceof Blob) uploadFile = allowed
       }
 
       const body = new FormData()
-      body.append(props.name, file)
+      body.append(props.name, uploadFile)
 
       try {
         const res = await fetch(props.action, {
@@ -448,9 +450,9 @@ const ElUpload = defineComponent({
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data?.error || '上传失败')
-        props.onSuccess && props.onSuccess(data, file)
+        props.onSuccess && props.onSuccess(data, uploadFile)
       } catch (err) {
-        props.onError && props.onError(err, file)
+        props.onError && props.onError(err, uploadFile)
       }
     }
 
