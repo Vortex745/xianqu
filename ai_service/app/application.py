@@ -36,8 +36,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    # Support both `/chat` and `/ai/chat` styles to avoid path mismatch
-    # across different reverse-proxy setups.
-    app.include_router(create_api_router(assistant, agent, recommender))
-    app.include_router(create_api_router(assistant, agent, recommender), prefix="/ai")
+    # Support `/chat`, `/ai/chat`, and `/api/ai/chat` styles to avoid path mismatch
+    # across different reverse-proxy setups including Vercel serverless routing.
+    router = create_api_router(assistant, agent, recommender)
+    app.include_router(router)
+    app.include_router(router, prefix="/ai")
+    app.include_router(router, prefix="/api/ai")
     return app

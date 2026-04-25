@@ -5,7 +5,7 @@
     "rewrites": [
         {
             "source": "/ai/(.*)",
-            "destination": "https://ai.530745.xyz/$1"
+            "destination": "/api/ai"
         },
         {
             "source": "/api/(.*)",
