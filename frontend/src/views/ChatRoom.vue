@@ -133,7 +133,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import request, { resolveUrl } from '@/utils/request'
 import { prepareImageForVercelUpload, UPLOAD_LIMIT_LABEL } from '@/utils/imageUpload'
-import { buildWebSocketUrl, isHttpOnlyRealtimeHost } from '@/utils/realtimeTransport'
+import { buildWebSocketUrl, isHttpOnlyRealtimeHost, supportsWebSocketTransport } from '@/utils/realtimeTransport'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ChatDotRound, Picture, Promotion, Refresh } from '@element-plus/icons-vue'
 import EmojiPicker from 'vue3-emoji-picker'
@@ -163,8 +163,10 @@ const httpFallback = ref(false)
 let socket = null
 let reconnectTimer = null
 let historyPollTimer = null
+let onlinePollTimer = null
 let reconnectCount = 0
 let historyLoading = false
+let onlineStatusLoading = false
 let fallbackTipShown = false
 const MAX_AUTO_RECONNECT = 3
 
@@ -284,6 +286,41 @@ const stopHistoryPolling = () => {
   }
 }
 
+const stopOnlinePolling = () => {
+  if (onlinePollTimer) {
+    clearInterval(onlinePollTimer)
+    onlinePollTimer = null
+  }
+}
+
+const tryPromoteToWebSocket = async () => {
+  if (!supportsWebSocketTransport()) return
+  if (!httpFallback.value || onlineStatusLoading) return
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return
+
+  onlineStatusLoading = true
+  try {
+    const res = await request.get('/api/chat/online', { params: { target_id: targetId } })
+    if (res?.target_online) {
+      fallbackTipShown = false
+      httpFallback.value = false
+      reconnectCount = 0
+      initWebSocket()
+    }
+  } catch (error) {
+    console.error('获取在线状态失败', error)
+  } finally {
+    onlineStatusLoading = false
+  }
+}
+
+const startOnlinePolling = () => {
+  if (onlinePollTimer || !supportsWebSocketTransport()) return
+  onlinePollTimer = setInterval(() => {
+    tryPromoteToWebSocket()
+  }, 5000)
+}
+
 const startHistoryPolling = () => {
   if (historyPollTimer) return
   historyPollTimer = setInterval(() => {
@@ -296,6 +333,7 @@ const enableHttpFallback = (showTip = false) => {
   wsConnected.value = false
   clearReconnectTimer()
   startHistoryPolling()
+  startOnlinePolling()
   if (showTip && !fallbackTipShown) {
     fallbackTipShown = true
     ElMessage.info('实时连接不可用，已切换普通消息模式')
@@ -339,6 +377,7 @@ const initWebSocket = () => {
     reconnectCount = 0
     clearReconnectTimer()
     stopHistoryPolling()
+    stopOnlinePolling()
     fetchHistory()
   }
 
@@ -449,6 +488,7 @@ const manualReconnect = () => {
   }
   clearReconnectTimer()
   stopHistoryPolling()
+  stopOnlinePolling()
   httpFallback.value = false
   fallbackTipShown = false
   if (socket && socket.readyState === WebSocket.OPEN) {
@@ -472,6 +512,7 @@ onMounted(async () => {
 onUnmounted(() => {
   clearReconnectTimer()
   stopHistoryPolling()
+  stopOnlinePolling()
   if (socket) socket.close()
 })
 </script>

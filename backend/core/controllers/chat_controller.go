@@ -86,6 +86,19 @@ func (cc *ChatController) GetHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": messages})
 }
 
+// GetOnlineStatus returns whether the current user and target user have
+// active WebSocket connections on this backend process.
+func (cc *ChatController) GetOnlineStatus(c *gin.Context) {
+	uid, _ := c.Get("userID")
+	userID := uid.(uint)
+
+	targetID, _ := strconv.Atoi(c.Query("target_id"))
+	c.JSON(http.StatusOK, gin.H{
+		"current_online": cc.Hub != nil && cc.Hub.IsOnline(userID),
+		"target_online":  targetID > 0 && cc.Hub != nil && cc.Hub.IsOnline(uint(targetID)),
+	})
+}
+
 // SendMessage HTTP 发送消息（用于 WebSocket 不可用时兜底）
 func (cc *ChatController) SendMessage(c *gin.Context) {
 	uid, _ := c.Get("userID")

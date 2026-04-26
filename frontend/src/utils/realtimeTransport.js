@@ -24,6 +24,8 @@ export const isHttpOnlyRealtimeHost = () => {
   return !import.meta.env.DEV && isVercelHosted(window.location.host)
 }
 
+export const supportsWebSocketTransport = () => !isHttpOnlyRealtimeHost()
+
 export const buildWebSocketUrl = (token) => {
   const explicitWsUrl = String(import.meta.env.VITE_WS_URL || '').trim()
   if (explicitWsUrl) {
