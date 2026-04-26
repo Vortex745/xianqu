@@ -133,6 +133,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import request, { resolveUrl } from '@/utils/request'
 import { prepareImageForVercelUpload, UPLOAD_LIMIT_LABEL } from '@/utils/imageUpload'
+import { buildWebSocketUrl, isHttpOnlyRealtimeHost } from '@/utils/realtimeTransport'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ChatDotRound, Picture, Promotion, Refresh } from '@element-plus/icons-vue'
 import EmojiPicker from 'vue3-emoji-picker'
@@ -266,21 +267,7 @@ const fetchHistory = async () => {
 
 const buildWsUrl = () => {
   const token = localStorage.getItem('token')
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const rawApiBase = String(import.meta.env.VITE_API_URL || '').trim()
-  let host = ''
-
-  if (rawApiBase) {
-    try {
-      host = new URL(rawApiBase).host
-    } catch (error) {
-      host = rawApiBase.replace(/^https?:\/\//i, '').replace(/\/.*$/, '')
-    }
-  } else {
-    host = import.meta.env.DEV ? 'localhost:8081' : window.location.host
-  }
-
-  return `${wsProtocol}://${host}/api/ws?token=${encodeURIComponent(token || '')}`
+  return buildWebSocketUrl(token)
 }
 
 const clearReconnectTimer = () => {
@@ -456,6 +443,10 @@ const handleUploadError = () => {
 }
 
 const manualReconnect = () => {
+  if (isHttpOnlyRealtimeHost()) {
+    enableHttpFallback(true)
+    return
+  }
   clearReconnectTimer()
   stopHistoryPolling()
   httpFallback.value = false
@@ -471,7 +462,11 @@ const manualReconnect = () => {
 onMounted(async () => {
   await fetchTargetInfo()
   await fetchHistory()
-  initWebSocket()
+  if (isHttpOnlyRealtimeHost()) {
+    enableHttpFallback(false)
+  } else {
+    initWebSocket()
+  }
 })
 
 onUnmounted(() => {

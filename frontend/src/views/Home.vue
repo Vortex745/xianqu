@@ -195,6 +195,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import request, { resolveUrl } from '@/utils/request'
+import { buildWebSocketUrl, isHttpOnlyRealtimeHost } from '@/utils/realtimeTransport'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, CaretTop, Switch, ShoppingCart, User, List, SwitchButton, ChatDotRound, Money, ArrowRight, Location, Goods, Loading } from '@element-plus/icons-vue'
@@ -444,13 +445,11 @@ const goToMessages = () => { unreadCount.value = 0; router.push('/messages') }
 const goToPublish = () => { if (user.value && hasToken.value) { router.push('/publish') } else { ElMessage.warning('站住，先上车'); showAuthModal.value = true } }
 
 const initGlobalWebSocket = () => {
+  if (isHttpOnlyRealtimeHost()) return
   if (!hasToken.value || globalSocket) return
   const token = normalizeToken(localStorage.getItem('token'))
   if (!token) return
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const apiBase = import.meta.env.VITE_API_URL || ''
-  const wsHost = apiBase ? apiBase.replace(/^https?:\/\//, '') : (import.meta.env.DEV ? 'localhost:8081' : window.location.host)
-  const wsUrl = `${wsProtocol}://${wsHost}/api/ws?token=${encodeURIComponent(token)}`
+  const wsUrl = buildWebSocketUrl(token)
   globalSocket = new WebSocket(wsUrl)
   globalSocket.onopen = () => {
     // reset badge on reconnect
