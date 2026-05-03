@@ -121,6 +121,10 @@ export const Edit = createIcon('Edit', [
 
 export const Filter = createIcon('Filter', [iconNode('path', { d: 'M3 5h18l-7 8v5l-4 2v-7Z' })])
 
+export const Flag = createIcon('Flag', [
+  iconNode('path', { d: 'M288 128h608L736 384l160 256H288v320h-96V64h96z' })
+], { filled: true, viewBox: '0 0 1024 1024' })
+
 export const Goods = createIcon('Goods', [
   iconNode('path', { d: 'M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z' }),
   iconNode('path', { d: 'M3 6h18' }),

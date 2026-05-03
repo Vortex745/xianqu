@@ -87,7 +87,7 @@
           <el-table-column label="商品警告" width="210">
             <template #default="scope">
               <div class="warning-cell" :class="getWarningLevel(scope.row)">
-                <IconExclamationCircleFill class="warning-icon" />
+                <Warning class="warning-icon" />
                 <div class="warning-main">
                   <div class="warning-top">
                     <span>{{ getReportCount(scope.row) }} 次举报</span>
@@ -138,8 +138,7 @@
 import { ref, onMounted, computed } from 'vue'
 import request, { resolveUrl } from '@/utils/request'
 import { ElMessage, ElMessageBox } from '@/ui/feedback'
-import { IconExclamationCircleFill } from '@arco-design/web-vue/es/icon'
-import { Search, CloseBold, Check, Picture, Refresh } from '@/icons/tw-icons.js'
+import { Search, CloseBold, Check, Picture, Refresh, Warning } from '@/icons/tw-icons.js'
 
 const loading = ref(false)
 const rawProductList = ref([])

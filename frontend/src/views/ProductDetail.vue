@@ -115,7 +115,7 @@
 
             <div v-if="!isOwner" class="icon-btn report-action" :class="{ active: hasReported }" @click="openReportDialog">
               <div class="icon-wrapper">
-                <IconExclamationCircleFill />
+                <el-icon><Flag /></el-icon>
               </div>
               <span class="text">{{ hasReported ? '已举报' : '举报' }}</span>
             </div>
@@ -263,10 +263,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { ElMessage } from 'element-plus'
-import { IconExclamationCircleFill } from '@arco-design/web-vue/es/icon'
 import {
   ArrowLeft, Picture, ZoomIn, View, Star, StarFilled,
-  ArrowRight, Location, MoreFilled, Close
+  ArrowRight, Location, MoreFilled, Close, Flag
 } from '@element-plus/icons-vue'
 import gsap from 'gsap'
 import { animConfig, createAnimContext, cleanupContext, feedbackAnim } from '@/utils/animations'
