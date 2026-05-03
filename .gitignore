@@ -1,3 +1,31 @@
+# 默认忽略全部文件，只保留 README 和核心源码
+*
+
+# 基础保留文件
+!/.gitignore
+!/README.md
+!/.python-version
+!/go.mod
+!/requirements.txt
+!/vercel.json
+
+# 核心目录
+!/api/
+!/api/**
+!/backend/
+!/backend/**
+!/frontend/
+!/frontend/**
+!/ai_service/
+!/ai_service/**
+!/tasks/
+!/tasks/**
+
+# 本地临时/分析文件
+/.omx/
+/repo-context.md
+/MEMORY.md
+
 # OS / IDE
 .DS_Store
 Thumbs.db
@@ -11,6 +39,7 @@ frontend/dist/
 frontend/npm-debug.log*
 frontend/build.log
 frontend/build_err.txt
+frontend/.env
 
 # Backend
 backend/.gocache/
@@ -22,6 +51,7 @@ backend/database.db
 backend/*.exe
 backend/dist/
 backend/uploads/
+backend/.env
 
 # Runtime uploads
 uploads/
@@ -40,11 +70,8 @@ ai_service/ai_service.log
 # Cloud / deploy caches
 .wrangler/
 **/.wrangler/
-
-# Env
-.env
-backend/.env
-frontend/.env
-.gstack/
-
 .vercel
+
+# Misc local
+.env
+.gstack/
