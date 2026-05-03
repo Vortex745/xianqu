@@ -59,6 +59,7 @@ func InitDB() {
 		&models.OrderLog{},
 		&models.Cart{},
 		&models.Favorite{},
+		&models.ProductReport{},
 		&models.UserBehavior{},
 		&models.Message{},
 		&models.VerificationCode{},

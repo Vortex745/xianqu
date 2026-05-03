@@ -84,6 +84,23 @@
             </template>
           </el-table-column>
 
+          <el-table-column label="商品警告" width="210">
+            <template #default="scope">
+              <div class="warning-cell" :class="getWarningLevel(scope.row)">
+                <IconExclamationCircleFill class="warning-icon" />
+                <div class="warning-main">
+                  <div class="warning-top">
+                    <span>{{ getReportCount(scope.row) }} 次举报</span>
+                    <span class="warning-label">{{ getWarningLabel(scope.row) }}</span>
+                  </div>
+                  <div class="warning-track">
+                    <span class="warning-bar" :style="{ width: `${getWarningPercent(scope.row)}%` }"></span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+
           <el-table-column label="操作" fixed="right" width="140" align="right">
             <template #default="scope">
               <el-tooltip content="强制下架" placement="top" v-if="scope.row.status === 1">
@@ -121,6 +138,7 @@
 import { ref, onMounted, computed } from 'vue'
 import request, { resolveUrl } from '@/utils/request'
 import { ElMessage, ElMessageBox } from '@/ui/feedback'
+import { IconExclamationCircleFill } from '@arco-design/web-vue/es/icon'
 import { Search, CloseBold, Check, Picture, Refresh } from '@/icons/tw-icons.js'
 
 const loading = ref(false)
@@ -183,6 +201,14 @@ const handleAudit = (row, targetStatus) => {
 
 const getStatusText = (s) => ({ 1: '在售', 2: '已售', 3: '违规下架' }[s] || '未知')
 const getStatusClass = (s) => ({ 1: 'sale', 2: 'sold', 3: 'ban' }[s] || '')
+const getReportCount = (row) => Number(row.report_count || 0)
+const getWarningLevel = (row) => row.warning_level || (getReportCount(row) <= 5 ? 'green' : getReportCount(row) <= 10 ? 'yellow' : 'red')
+const getWarningLabel = (row) => ({ green: '正常', yellow: '关注', red: '高危' }[getWarningLevel(row)] || '正常')
+const getWarningPercent = (row) => {
+  const count = getReportCount(row)
+  if (count <= 0) return 0
+  return Math.min(100, Math.max(8, Math.round((count / 15) * 100)))
+}
 
 onMounted(fetchProducts)
 </script>
@@ -338,6 +364,72 @@ $border-light: rgba(17, 24, 39, 0.05);
   &.ban {
     background: rgba($danger, 0.08); color: color.adjust($danger, $lightness: -10%);
     &::before { background: $danger; }
+  }
+}
+
+.warning-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: $success;
+
+  .warning-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: rgba($success, 0.42);
+  }
+
+  .warning-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .warning-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 7px;
+    color: $gray-600;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .warning-label {
+    color: currentColor;
+    flex-shrink: 0;
+  }
+
+  .warning-track {
+    height: 7px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: $gray-100;
+  }
+
+  .warning-bar {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: currentColor;
+    transition: width 0.24s ease;
+  }
+
+  &.yellow {
+    color: $warning;
+
+    .warning-icon {
+      color: rgba($warning, 0.74);
+    }
+  }
+
+  &.red {
+    color: $danger;
+
+    .warning-icon {
+      color: $danger;
+      filter: drop-shadow(0 0 6px rgba($danger, 0.32));
+    }
   }
 }
 

@@ -6,7 +6,7 @@
           <el-icon><ArrowLeft /></el-icon> 返回
         </div>
         <div class="brand-logo">XIANQU</div>
-        <div class="action-btn">
+        <div class="action-btn" @click="openReportDialog">
           <el-icon><MoreFilled /></el-icon>
         </div>
       </div>
@@ -113,6 +113,13 @@
               <span class="text">{{ isLiked ? '已收藏' : '想要' }}</span>
             </div>
 
+            <div v-if="!isOwner" class="icon-btn report-action" :class="{ active: hasReported }" @click="openReportDialog">
+              <div class="icon-wrapper">
+                <IconExclamationCircleFill />
+              </div>
+              <span class="text">{{ hasReported ? '已举报' : '举报' }}</span>
+            </div>
+
             <div class="main-btns" :class="{ 'with-chat': !isOwner }">
               <template v-if="isOwner">
                 <button class="btn btn-cart" disabled style="background: #f5f5f5; color: #999; cursor: not-allowed;">我是卖家</button>
@@ -136,6 +143,35 @@
         <button class="btn-back" @click="goBack">返回首页</button>
       </div>
     </div>
+
+    <el-dialog
+        v-model="reportDialogVisible"
+        title="举报商品"
+        width="420px"
+        max-width="calc(100vw - 32px)"
+        align-center
+        destroy-on-close
+        :close-on-click-modal="!reportSubmitting"
+    >
+      <div class="report-dialog">
+        <div class="report-target">{{ product.name || '当前商品' }}</div>
+        <el-input
+            v-model="reportReason"
+            type="textarea"
+            rows="5"
+            maxlength="200"
+            placeholder="请填写具体举报理由，例如：图片与实物不符、疑似虚假信息、价格异常等"
+            :disabled="reportSubmitting"
+        />
+        <div class="report-meta">{{ reportReason.trim().length }}/200</div>
+      </div>
+      <template #footer>
+        <button class="report-cancel" type="button" :disabled="reportSubmitting" @click="closeReportDialog">取消</button>
+        <button class="report-submit" type="button" :disabled="reportSubmitting" @click="submitReport">
+          {{ reportSubmitting ? '提交中...' : '提交举报' }}
+        </button>
+      </template>
+    </el-dialog>
 
     <transition name="viewer-fade">
       <div
@@ -227,6 +263,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import request, { resolveBackendAssetUrl } from '@/utils/request'
 import { ElMessage } from 'element-plus'
+import { IconExclamationCircleFill } from '@arco-design/web-vue/es/icon'
 import {
   ArrowLeft, Picture, ZoomIn, View, Star, StarFilled,
   ArrowRight, Location, MoreFilled, Close
@@ -253,6 +290,10 @@ const viewerSwipeOffsetX = ref(0)
 const viewerDismissOffsetY = ref(0)
 const viewerImageLoading = ref(false)
 const viewerImageError = ref(false)
+const reportDialogVisible = ref(false)
+const reportReason = ref('')
+const reportSubmitting = ref(false)
+const hasReported = ref(false)
 
 const defaultImg = 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png'
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
@@ -391,6 +432,45 @@ const goBack = () => {
     router.go(-1)
   } else {
     router.push('/')
+  }
+}
+
+const openReportDialog = () => {
+  if (isOwner.value) return
+  if (!user) {
+    ElMessage.warning('请先登录后举报')
+    jumpToLogin()
+    return
+  }
+  reportDialogVisible.value = true
+}
+
+const closeReportDialog = () => {
+  if (reportSubmitting.value) return
+  reportDialogVisible.value = false
+}
+
+const submitReport = async () => {
+  const reason = reportReason.value.trim()
+  if (reason.length < 2) {
+    ElMessage.warning('请填写具体举报理由')
+    return
+  }
+  try {
+    reportSubmitting.value = true
+    await request.post(`/api/products/${product.value.id}/reports`, { reason })
+    hasReported.value = true
+    reportDialogVisible.value = false
+    reportReason.value = ''
+    ElMessage.success('举报已提交')
+  } catch (e) {
+    const message = e.response?.data?.error || '举报提交失败'
+    if (message.includes('已举报')) {
+      hasReported.value = true
+    }
+    ElMessage.error(message)
+  } finally {
+    reportSubmitting.value = false
   }
 }
 
@@ -623,6 +703,7 @@ const fetchDetail = async () => {
     data.is_self_pickup = isOptionEnabled(data.is_self_pickup ?? data.isSelfPickup)
 
     product.value = data
+    hasReported.value = false
     activeGalleryIndex.value = 0
     stageImageFailed.value = false
     viewerIndex.value = 0
@@ -1175,6 +1256,13 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
     .text { font-size: 11px; font-weight: bold; }
     &:hover { color: $dark; }
     &.active { color: #ff5000; .icon-wrapper { animation: pop 0.3s; } }
+    &.report-action {
+      color: #b0b5bf;
+      &:hover,
+      &.active {
+        color: #ef4444;
+      }
+    }
   }
 
   .main-btns {
@@ -1216,6 +1304,54 @@ $bg-gradient: radial-gradient(circle at 10% 20%, rgba(255, 223, 93, 0.15) 0%, #f
 }
 
 .empty-state { text-align: center; margin-top: 100px; .btn-back { background: $dark; color: #fff; border: none; padding: 10px 24px; border-radius: 99px; cursor: pointer; } }
+
+.report-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-target {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1f2530;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-meta {
+  align-self: flex-end;
+  font-size: 12px;
+  color: #9aa3af;
+}
+
+.report-cancel,
+.report-submit {
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.report-cancel {
+  background: #f3f4f6;
+  color: #4b5563;
+  margin-right: 10px;
+}
+
+.report-submit {
+  background: #1a1a1a;
+  color: #ffdf5d;
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+  }
+}
 
 .viewer-mask {
   position: fixed;

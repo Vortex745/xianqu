@@ -122,6 +122,7 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 			userGroup.POST("/upload", fileController.Upload)
 			userGroup.POST("/products", productController.Create)
 			userGroup.PUT("/products/:id", productController.Update)
+			userGroup.POST("/products/:id/reports", productController.Report)
 			userGroup.POST("/orders", orderController.Create)
 			userGroup.POST("/orders/batch", orderController.BatchCreate)
 			userGroup.GET("/orders", orderController.List)

@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"gotest/config"
 	"gotest/core/models"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +16,17 @@ import (
 
 type ProductController struct {
 	// 移除 Service 依赖，直接使用 config.DB
+}
+
+func normalizeReportReason(value string) (string, error) {
+	reason := strings.TrimSpace(value)
+	if len([]rune(reason)) < 2 {
+		return "", errors.New("请填写具体举报理由")
+	}
+	if len([]rune(reason)) > 200 {
+		return "", errors.New("举报理由不能超过200字")
+	}
+	return reason, nil
 }
 
 // List 获取商品列表
@@ -195,4 +208,60 @@ func (p *ProductController) Update(c *gin.Context) {
 	_ = config.DB.First(&product, id).Error
 
 	c.JSON(http.StatusOK, gin.H{"message": "更新成功", "data": product})
+}
+
+// Report 举报商品
+func (p *ProductController) Report(c *gin.Context) {
+	id := c.Param("id")
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		return
+	}
+
+	var product models.Product
+	if err := config.DB.First(&product, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "商品不存在"})
+		return
+	}
+
+	reporterID := userID.(uint)
+	if product.UserID == reporterID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "不能举报自己的商品"})
+		return
+	}
+
+	var input struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	reason, err := normalizeReportReason(input.Reason)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	report := models.ProductReport{
+		ProductID: product.ID,
+		UserID:    reporterID,
+		Reason:    reason,
+		CreatedAt: time.Now(),
+	}
+	if err := config.DB.Create(&report).Error; err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "您已举报过该商品"})
+		return
+	}
+
+	var reportCount int64
+	config.DB.Model(&models.ProductReport{}).Where("product_id = ?", product.ID).Count(&reportCount)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "举报已提交",
+		"report_count":  reportCount,
+		"warning_level": productWarningLevel(reportCount),
+	})
 }

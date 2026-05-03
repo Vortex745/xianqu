@@ -12,6 +12,16 @@ import (
 
 type AdminController struct{}
 
+func productWarningLevel(reportCount int64) string {
+	if reportCount <= 5 {
+		return "green"
+	}
+	if reportCount <= 10 {
+		return "yellow"
+	}
+	return "red"
+}
+
 // Login 管理员登录
 func (a *AdminController) Login(c *gin.Context) {
 	var input struct {
@@ -149,7 +159,27 @@ func (a *AdminController) UpdateUserStatus(c *gin.Context) {
 func (a *AdminController) GetProducts(c *gin.Context) {
 	var products []models.Product
 	config.DB.Preload("User").Order("created_at desc").Find(&products)
-	c.JSON(http.StatusOK, gin.H{"data": products})
+
+	type adminProduct struct {
+		models.Product
+		User         models.User `json:"user"`
+		ReportCount  int64       `json:"report_count"`
+		WarningLevel string      `json:"warning_level"`
+	}
+
+	response := make([]adminProduct, 0, len(products))
+	for _, product := range products {
+		var reportCount int64
+		config.DB.Model(&models.ProductReport{}).Where("product_id = ?", product.ID).Count(&reportCount)
+		response = append(response, adminProduct{
+			Product:      product,
+			User:         product.User,
+			ReportCount:  reportCount,
+			WarningLevel: productWarningLevel(reportCount),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": response})
 }
 
 // AuditProduct 审核/下架商品
