@@ -82,6 +82,7 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 	analyticsController := new(controllers.AnalyticsController)
 	authController := new(controllers.AuthController)
 	aiModelController := new(controllers.AIModelController)
+	notificationController := new(controllers.SystemNotificationController)
 
 	// 8. API Routes
 	api := r.Group("/api")
@@ -123,6 +124,9 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 			userGroup.POST("/products", productController.Create)
 			userGroup.PUT("/products/:id", productController.Update)
 			userGroup.POST("/products/:id/reports", productController.Report)
+			userGroup.GET("/notifications", notificationController.List)
+			userGroup.GET("/notifications/unread-count", notificationController.UnreadCount)
+			userGroup.PUT("/notifications/:id/read", notificationController.MarkRead)
 			userGroup.POST("/orders", orderController.Create)
 			userGroup.POST("/orders/batch", orderController.BatchCreate)
 			userGroup.GET("/orders", orderController.List)

@@ -130,7 +130,7 @@ const confirmPay = async () => {
   try {
     // 1. 批量支付逻辑
     if (props.order.isBatch && props.order.ids && props.order.ids.length > 0) {
-      const promises = props.order.ids.map(id => request.post(`/api/orders/${id}/pay`))
+      const promises = props.order.ids.map(id => request.post(`/api/orders/${id}/confirm_pay`))
       await Promise.all(promises)
     }
     // 2. 单个支付逻辑 (修复点：确保这里读取的是 props.order.id)

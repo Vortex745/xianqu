@@ -217,7 +217,9 @@ const isScrolled = ref(0)
 const scrollY = ref(0)
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
 const cartCount = ref(0)
-const unreadCount = ref(0)
+const chatUnreadCount = ref(0)
+const systemUnreadCount = ref(0)
+const unreadCount = computed(() => chatUnreadCount.value + systemUnreadCount.value)
 
 const normalizeToken = (raw = '') => {
   const value = String(raw || '').trim()
@@ -441,7 +443,20 @@ const fetchCartCount = async () => {
     return false
   }
 }
-const goToMessages = () => { unreadCount.value = 0; router.push('/messages') }
+
+const fetchNotificationUnreadCount = async () => {
+  if (!user.value || !hasToken.value) return false
+  try {
+    const res = await request.get('/api/notifications/unread-count')
+    systemUnreadCount.value = Number(res.count || 0)
+    return true
+  } catch (e) {
+    systemUnreadCount.value = 0
+    return false
+  }
+}
+
+const goToMessages = () => { chatUnreadCount.value = 0; router.push('/messages') }
 const goToPublish = () => { if (user.value && hasToken.value) { router.push('/publish') } else { ElMessage.warning('站住，先上车'); showAuthModal.value = true } }
 
 const initGlobalWebSocket = () => {
@@ -453,13 +468,13 @@ const initGlobalWebSocket = () => {
   globalSocket = new WebSocket(wsUrl)
   globalSocket.onopen = () => {
     // reset badge on reconnect
-    unreadCount.value = Math.max(0, unreadCount.value)
+    chatUnreadCount.value = Math.max(0, chatUnreadCount.value)
   }
   globalSocket.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data)
       if (Number(msg.receiver_id) === Number(user.value.id)) {
-        unreadCount.value++
+        chatUnreadCount.value++
         ElMessage.info({ message: `有人撩你`, grouping: true })
       }
     } catch (e) {}
@@ -479,6 +494,7 @@ const handleLoginSuccess = async (u) => {
   user.value = u;
   hasToken.value = true;
   await fetchCartCount();
+  await fetchNotificationUnreadCount();
   initGlobalWebSocket();
   await getLocation();
   await fetchProducts();
@@ -494,12 +510,12 @@ const handleSwitchAccount = () => {
       .then(() => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        user.value = null; hasToken.value = false; userDrawer.value = false; if(globalSocket) { globalSocket.close(); globalSocket = null; } showAuthModal.value = true;
+        user.value = null; hasToken.value = false; userDrawer.value = false; chatUnreadCount.value = 0; systemUnreadCount.value = 0; if(globalSocket) { globalSocket.close(); globalSocket = null; } showAuthModal.value = true;
       }).catch(() => {})
 }
 const logout = () => {
   ElMessageBox.confirm('确定要退出登录吗？','退出登录',{ confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning', center: true, customClass: 'warm-theme-box' })
-      .then(() => { localStorage.removeItem('token'); localStorage.removeItem('user'); user.value = null; hasToken.value = false; userDrawer.value = false; cartCount.value = 0; unreadCount.value = 0; if(globalSocket) { globalSocket.close(); globalSocket = null; } ElMessage.success('退出登录成功') }).catch(() => {})
+      .then(() => { localStorage.removeItem('token'); localStorage.removeItem('user'); user.value = null; hasToken.value = false; userDrawer.value = false; cartCount.value = 0; chatUnreadCount.value = 0; systemUnreadCount.value = 0; if(globalSocket) { globalSocket.close(); globalSocket = null; } ElMessage.success('退出登录成功') }).catch(() => {})
 }
 const openDetail = (id) => { router.push(`/product/${id}`) }
 const filterCategory = (id) => { currentCat.value = id; fetchProducts() }
@@ -606,9 +622,12 @@ onMounted(async () => {
     setCookie('user_pref_only_nearby', 'false')
   }
   await handlePublishedRedirect()
-  const productOk = await fetchProducts()
-  if (hasToken.value && productOk) {
-    const cartOk = await fetchCartCount()
+  await fetchProducts()
+  if (hasToken.value) {
+    const [cartOk] = await Promise.all([
+      fetchCartCount(),
+      fetchNotificationUnreadCount()
+    ])
     if (cartOk) initGlobalWebSocket()
   }
   openAuthModalByRoute()

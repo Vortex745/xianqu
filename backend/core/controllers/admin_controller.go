@@ -192,7 +192,28 @@ func (a *AdminController) AuditProduct(c *gin.Context) {
 		return
 	}
 
-	config.DB.Model(&models.Product{}).Where("id = ?", id).Update("status", input.Status)
+	var product models.Product
+	if err := config.DB.First(&product, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "商品不存在"})
+		return
+	}
+
+	tx := config.DB.Begin()
+	if err := tx.Model(&product).Update("status", input.Status).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
+		return
+	}
+
+	if shouldNotifyProductTakedown(product.Status, input.Status) {
+		if err := createSystemNotification(tx, buildProductTakedownNotification(product)); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建下架通知失败"})
+			return
+		}
+	}
+
+	tx.Commit()
 	c.JSON(http.StatusOK, gin.H{"message": "操作成功"})
 }
 

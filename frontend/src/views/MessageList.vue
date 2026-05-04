@@ -12,6 +12,61 @@
 
     <div class="container main-content">
       <div class="desktop-shell">
+        <section class="system-card glass-panel">
+          <div class="list-head">
+            <h3>系统通知</h3>
+            <span class="contact-count">未读 {{ systemUnreadTotal }} 条</span>
+          </div>
+
+          <div v-if="systemNotifications.length === 0 && !loading" class="system-empty">
+            <div class="system-empty-icon">
+              <el-icon><Bell /></el-icon>
+            </div>
+            <div>
+              <p class="main">暂无系统通知</p>
+              <p class="sub">订单和商品状态提醒会出现在这里</p>
+            </div>
+          </div>
+
+          <div v-else class="notification-scroll">
+            <div
+              v-for="item in systemNotifications"
+              :key="item.id"
+              class="notification-item"
+              :class="{ unread: !item.is_read }"
+            >
+              <div class="notification-icon">
+                <el-icon><Bell /></el-icon>
+              </div>
+              <div class="notification-body">
+                <div class="row-top">
+                  <span class="notification-title">{{ item.title || '系统通知' }}</span>
+                  <span class="time">{{ formatTime(item.created_at) }}</span>
+                </div>
+                <p class="notification-content">{{ item.content }}</p>
+                <div class="notification-actions">
+                  <button
+                    v-if="getNotificationActionLabel(item)"
+                    class="notice-action primary"
+                    type="button"
+                    @click="handleNotificationAction(item)"
+                  >
+                    {{ getNotificationActionLabel(item) }}
+                  </button>
+                  <button
+                    v-if="!item.is_read"
+                    class="notice-action"
+                    type="button"
+                    @click="markNotificationRead(item)"
+                  >
+                    我知道了
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="chat-list-card glass-panel">
           <div class="list-head">
             <h3>近期会话</h3>
@@ -83,15 +138,17 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import request, { resolveBackendAssetUrl } from '@/utils/request'
-import { ArrowLeft, ArrowRight, ChatDotRound, Bell } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { ArrowLeft, ArrowRight, Bell } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const loading = ref(false)
 const contacts = ref([])
+const systemNotifications = ref([])
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
 
-const unreadTotal = computed(() => {
-  return contacts.value.reduce((sum, item) => sum + Number(item.unread_count || 0), 0)
+const systemUnreadTotal = computed(() => {
+  return systemNotifications.value.filter(item => !item.is_read).length
 })
 
 const getCurrentUser = () => {
@@ -111,7 +168,6 @@ const fetchContacts = async () => {
     return
   }
 
-  loading.value = true
   try {
     const res = await request.get('/api/chat/contacts')
     contacts.value = (res.data || []).map(item => ({
@@ -120,6 +176,27 @@ const fetchContacts = async () => {
     }))
   } catch (e) {
     console.error('获取消息列表失败:', e)
+  }
+}
+
+const fetchSystemNotifications = async () => {
+  try {
+    const res = await request.get('/api/notifications')
+    systemNotifications.value = res.data || []
+  } catch (e) {
+    console.error('获取系统通知失败:', e)
+  }
+}
+
+const fetchPageData = async () => {
+  if (!user.value || !user.value.id) {
+    router.push('/')
+    return
+  }
+
+  loading.value = true
+  try {
+    await Promise.all([fetchSystemNotifications(), fetchContacts()])
   } finally {
     loading.value = false
   }
@@ -127,6 +204,40 @@ const fetchContacts = async () => {
 
 const toChat = (targetId) => {
   router.push(`/chat/${targetId}`)
+}
+
+const markNotificationRead = async (item) => {
+  if (!item || item.is_read) return
+  try {
+    await request.put(`/api/notifications/${item.id}/read`)
+    item.is_read = true
+  } catch (e) {
+    console.error('标记通知失败:', e)
+  }
+}
+
+const getNotificationActionLabel = (item) => {
+  if (item.type === 'shipment') return '去发货'
+  if (item.type === 'product_takedown') return '去整改'
+  if (item.product_id) return '查看商品'
+  return ''
+}
+
+const handleNotificationAction = async (item) => {
+  await markNotificationRead(item)
+  if (item.type === 'shipment') {
+    router.push('/mysales')
+    return
+  }
+  if (item.type === 'product_takedown' && item.product_id) {
+    router.push(`/product/manage/${item.product_id}`)
+    return
+  }
+  if (item.product_id) {
+    router.push(`/product/${item.product_id}`)
+    return
+  }
+  ElMessage.info('通知已读')
 }
 
 const formatTime = (timeStr) => {
@@ -143,7 +254,7 @@ const formatTime = (timeStr) => {
 }
 
 onMounted(() => {
-  fetchContacts()
+  fetchPageData()
 })
 </script>
 
@@ -252,6 +363,14 @@ onMounted(() => {
 .desktop-shell {
   max-width: 720px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.system-card {
+  border-radius: 18px;
+  overflow: hidden;
 }
 
 .chat-list-card {
@@ -280,6 +399,134 @@ onMounted(() => {
     background: #f2f5fa;
     padding: 4px 10px;
     border-radius: 20px;
+  }
+}
+
+.system-empty {
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 22px;
+  color: #657186;
+
+  .system-empty-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #fff8dd;
+    color: #8b7722;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .main {
+    margin: 0 0 4px;
+    color: #253043;
+    font-size: 16px;
+    font-weight: 900;
+  }
+
+  .sub {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+}
+
+.notification-scroll {
+  max-height: 340px;
+  overflow: auto;
+  padding: 8px 10px 12px;
+}
+
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  margin-bottom: 6px;
+  background: rgba(248, 250, 252, 0.68);
+
+  &.unread {
+    background: #fffef6;
+    border-color: #eedb8a;
+  }
+
+  .notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #fff8dc;
+    color: #8b7722;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .notification-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .notification-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: #253043;
+  }
+
+  .time {
+    color: #8b94a5;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .notification-content {
+    margin: 0;
+    color: #657186;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.55;
+  }
+
+  .notification-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .notice-action {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid #dce2ec;
+    background: #fff;
+    color: #4b5567;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+
+    &.primary {
+      background: #202633;
+      border-color: #202633;
+      color: #ffdf5d;
+    }
   }
 }
 

@@ -70,11 +70,11 @@
                 联系买家
               </button>
 
-              <button class="btn-primary" v-if="order.status === 1" @click="shipOrder(order)">
+              <button class="btn-primary" v-if="order.status === 2" @click="shipOrder(order)">
                 <IconifySymbol icon="lucide:truck" size="13" color="#d28508" />
                 去发货
               </button>
-              <button class="btn-outline" v-if="order.status === 2">
+              <button class="btn-outline" v-if="order.status === 3">
                 <IconifySymbol icon="lucide:clock-3" size="13" color="#646f7e" />
                 等待收货
               </button>

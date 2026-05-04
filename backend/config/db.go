@@ -60,6 +60,7 @@ func InitDB() {
 		&models.Cart{},
 		&models.Favorite{},
 		&models.ProductReport{},
+		&models.SystemNotification{},
 		&models.UserBehavior{},
 		&models.Message{},
 		&models.VerificationCode{},

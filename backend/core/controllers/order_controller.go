@@ -199,6 +199,14 @@ func (o *OrderController) ConfirmPay(c *gin.Context) {
 		return
 	}
 
+	product := models.Product{ID: order.ProductID, Name: "商品"}
+	_ = tx.Select("id", "name").First(&product, order.ProductID).Error
+	if err := createSystemNotification(tx, buildShipmentNotification(order, product)); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建发货提醒失败"})
+		return
+	}
+
 	tx.Commit()
 	c.JSON(http.StatusOK, gin.H{"message": "支付成功"})
 }
