@@ -133,7 +133,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import request, { resolveUrl } from '@/utils/request'
 import { prepareImageForVercelUpload, UPLOAD_LIMIT_LABEL } from '@/utils/imageUpload'
-import { buildWebSocketUrl, isHttpOnlyRealtimeHost, supportsWebSocketTransport } from '@/utils/realtimeTransport'
+import { buildWebSocketUrl, hasExplicitWebSocketUrl, isHttpOnlyRealtimeHost, supportsWebSocketTransport } from '@/utils/realtimeTransport'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ChatDotRound, Picture, Promotion, Refresh } from '@element-plus/icons-vue'
 import EmojiPicker from 'vue3-emoji-picker'
@@ -173,7 +173,7 @@ const MAX_AUTO_RECONNECT = 3
 const canSend = computed(() => !!inputText.value.trim())
 const connectionLabel = computed(() => {
   if (wsConnected.value) return '在线'
-  return httpFallback.value ? '普通模式' : '重连中'
+  return httpFallback.value ? '在线' : '重连中'
 })
 
 const uploadUrl = computed(() => {
@@ -300,8 +300,16 @@ const tryPromoteToWebSocket = async () => {
 
   onlineStatusLoading = true
   try {
+    if (hasExplicitWebSocketUrl()) {
+      fallbackTipShown = false
+      httpFallback.value = false
+      reconnectCount = 0
+      initWebSocket()
+      return
+    }
+
     const res = await request.get('/api/chat/online', { params: { target_id: targetId } })
-    if (res?.target_online) {
+    if (res?.transport_mode === 'websocket' || res?.websocket_supported) {
       fallbackTipShown = false
       httpFallback.value = false
       reconnectCount = 0
@@ -312,6 +320,30 @@ const tryPromoteToWebSocket = async () => {
   } finally {
     onlineStatusLoading = false
   }
+}
+
+const checkRealtimeMode = async () => {
+  if (!supportsWebSocketTransport()) {
+    enableHttpFallback(false)
+    return
+  }
+
+  if (hasExplicitWebSocketUrl()) {
+    initWebSocket()
+    return
+  }
+
+  try {
+    const res = await request.get('/api/chat/online', { params: { target_id: targetId } })
+    if (res?.transport_mode === 'websocket' || res?.websocket_supported) {
+      initWebSocket()
+      return
+    }
+  } catch (error) {
+    console.error('获取在线状态失败', error)
+  }
+
+  enableHttpFallback(false)
 }
 
 const startOnlinePolling = () => {
@@ -357,6 +389,10 @@ const scheduleReconnect = () => {
 const initWebSocket = () => {
   const token = localStorage.getItem('token')
   if (!token) return
+  if (!supportsWebSocketTransport()) {
+    enableHttpFallback(false)
+    return
+  }
 
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return
@@ -505,7 +541,7 @@ onMounted(async () => {
   if (isHttpOnlyRealtimeHost()) {
     enableHttpFallback(false)
   } else {
-    initWebSocket()
+    await checkRealtimeMode()
   }
 })
 

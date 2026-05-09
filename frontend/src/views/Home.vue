@@ -196,6 +196,7 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import request, { resolveUrl } from '@/utils/request'
 import { buildWebSocketUrl, isHttpOnlyRealtimeHost } from '@/utils/realtimeTransport'
+import { markPresenceOffline, startPresenceHeartbeat, stopPresenceHeartbeat } from '@/utils/presence'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, CaretTop, Switch, ShoppingCart, User, List, SwitchButton, ChatDotRound, Money, ArrowRight, Location, Goods, Loading } from '@element-plus/icons-vue'
@@ -493,6 +494,7 @@ const initGlobalWebSocket = () => {
 const handleLoginSuccess = async (u) => {
   user.value = u;
   hasToken.value = true;
+  startPresenceHeartbeat();
   await fetchCartCount();
   await fetchNotificationUnreadCount();
   initGlobalWebSocket();
@@ -508,14 +510,16 @@ const handleLoginSuccess = async (u) => {
 const handleSwitchAccount = () => {
   ElMessageBox.confirm('确定要切换其他账号吗？','切换账号',{ confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning', center: true, customClass: 'warm-theme-box' })
       .then(() => {
+        markPresenceOffline();
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        stopPresenceHeartbeat();
         user.value = null; hasToken.value = false; userDrawer.value = false; chatUnreadCount.value = 0; systemUnreadCount.value = 0; if(globalSocket) { globalSocket.close(); globalSocket = null; } showAuthModal.value = true;
       }).catch(() => {})
 }
 const logout = () => {
   ElMessageBox.confirm('确定要退出登录吗？','退出登录',{ confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning', center: true, customClass: 'warm-theme-box' })
-      .then(() => { localStorage.removeItem('token'); localStorage.removeItem('user'); user.value = null; hasToken.value = false; userDrawer.value = false; cartCount.value = 0; chatUnreadCount.value = 0; systemUnreadCount.value = 0; if(globalSocket) { globalSocket.close(); globalSocket = null; } ElMessage.success('退出登录成功') }).catch(() => {})
+      .then(() => { markPresenceOffline(); localStorage.removeItem('token'); localStorage.removeItem('user'); stopPresenceHeartbeat(); user.value = null; hasToken.value = false; userDrawer.value = false; cartCount.value = 0; chatUnreadCount.value = 0; systemUnreadCount.value = 0; if(globalSocket) { globalSocket.close(); globalSocket = null; } ElMessage.success('退出登录成功') }).catch(() => {})
 }
 const openDetail = (id) => { router.push(`/product/${id}`) }
 const filterCategory = (id) => { currentCat.value = id; fetchProducts() }

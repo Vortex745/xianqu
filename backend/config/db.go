@@ -61,6 +61,7 @@ func InitDB() {
 		&models.Favorite{},
 		&models.ProductReport{},
 		&models.SystemNotification{},
+		&models.UserPresence{},
 		&models.UserBehavior{},
 		&models.Message{},
 		&models.VerificationCode{},

@@ -26,6 +26,8 @@ export const isHttpOnlyRealtimeHost = () => {
 
 export const supportsWebSocketTransport = () => !isHttpOnlyRealtimeHost()
 
+export const hasExplicitWebSocketUrl = () => String(import.meta.env.VITE_WS_URL || '').trim() !== ''
+
 export const buildWebSocketUrl = (token) => {
   const explicitWsUrl = String(import.meta.env.VITE_WS_URL || '').trim()
   if (explicitWsUrl) {

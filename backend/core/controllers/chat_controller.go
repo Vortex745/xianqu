@@ -5,10 +5,13 @@ import (
 	"gotest/config"
 	"gotest/core/middleware"
 	"gotest/core/models"
+	"gotest/core/services"
 	"gotest/pkg/ws"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -86,16 +89,27 @@ func (cc *ChatController) GetHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": messages})
 }
 
-// GetOnlineStatus returns whether the current user and target user have
-// active WebSocket connections on this backend process.
+// GetOnlineStatus returns durable presence separately from WebSocket readiness.
 func (cc *ChatController) GetOnlineStatus(c *gin.Context) {
 	uid, _ := c.Get("userID")
 	userID := uid.(uint)
 
 	targetID, _ := strconv.Atoi(c.Query("target_id"))
+	now := time.Now()
+	currentPresenceOnline := services.IsUserRecentlyOnline(config.DB, userID, now)
+	targetPresenceOnline := services.IsUserRecentlyOnline(config.DB, uint(targetID), now)
+	currentWebSocketOnline := cc.Hub != nil && cc.Hub.IsOnline(userID)
+	targetWebSocketOnline := targetID > 0 && cc.Hub != nil && cc.Hub.IsOnline(uint(targetID))
+	webSocketSupported := supportsWebSocketServer(c.Request)
+
 	c.JSON(http.StatusOK, gin.H{
-		"current_online": cc.Hub != nil && cc.Hub.IsOnline(userID),
-		"target_online":  targetID > 0 && cc.Hub != nil && cc.Hub.IsOnline(uint(targetID)),
+		"current_online":           currentPresenceOnline,
+		"target_online":            targetPresenceOnline,
+		"current_websocket_online": currentWebSocketOnline,
+		"target_websocket_online":  targetWebSocketOnline,
+		"websocket_supported":      webSocketSupported,
+		"websocket_ready":          webSocketSupported && currentWebSocketOnline && targetWebSocketOnline,
+		"transport_mode":           realtimeTransportMode(webSocketSupported),
 	})
 }
 
@@ -172,8 +186,37 @@ func (cc *ChatController) GetContacts(c *gin.Context) {
 			"avatar":   user.Avatar,
 			"last_msg": msg.Content,
 			"time":     msg.CreatedAt,
+			"online":   services.IsUserRecentlyOnline(config.DB, user.ID, time.Now()),
+			"status":   user.Status,
 		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": contacts})
+}
+
+func supportsWebSocketServer(r *http.Request) bool {
+	if os.Getenv("VERCEL") != "" {
+		return false
+	}
+
+	host := ""
+	if r != nil {
+		if r.Header.Get("X-Vercel-Id") != "" {
+			return false
+		}
+		host = r.Host
+		if forwardedHost := r.Header.Get("X-Forwarded-Host"); forwardedHost != "" {
+			host = forwardedHost
+		}
+	}
+
+	host = strings.ToLower(strings.Split(host, ":")[0])
+	return host != "" && !strings.HasSuffix(host, ".vercel.app") && host != "315279.xyz"
+}
+
+func realtimeTransportMode(webSocketSupported bool) string {
+	if webSocketSupported {
+		return "websocket"
+	}
+	return "http"
 }

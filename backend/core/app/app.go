@@ -83,6 +83,7 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 	authController := new(controllers.AuthController)
 	aiModelController := new(controllers.AIModelController)
 	notificationController := new(controllers.SystemNotificationController)
+	presenceController := new(controllers.PresenceController)
 
 	// 8. API Routes
 	api := r.Group("/api")
@@ -113,6 +114,8 @@ func SetupEngine(frontendFS fs.FS) *gin.Engine {
 			userGroup.GET("/cart", cartController.List)
 			userGroup.DELETE("/cart/:id", cartController.Delete)
 			userGroup.POST("/behavior", behaviorController.Report)
+			userGroup.POST("/presence/heartbeat", presenceController.Heartbeat)
+			userGroup.POST("/presence/offline", presenceController.Offline)
 			chatGroup := userGroup.Group("/chat")
 			{
 				chatGroup.GET("/contacts", chatController.GetContacts)
