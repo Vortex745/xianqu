@@ -75,3 +75,7 @@ ai_service/ai_service.log
 # Misc local
 .env
 .gstack/
+
+.dev.vars*
+!.dev.vars.example
+!.env.example
